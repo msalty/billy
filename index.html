@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Billy">
 <meta name="theme-color" content="#ececee">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2357b957'/%3E%3Cpath d='M30 18h40v56l-6.7-6-6.6 6-6.7-6-6.7 6-6.6-6-6.7 6z' fill='white'/%3E%3Ccircle cx='41' cy='38' r='3.5' fill='%232c2c2e'/%3E%3Ccircle cx='59' cy='38' r='3.5' fill='%232c2c2e'/%3E%3Cpath d='M40 49q10 9 20 0' fill='none' stroke='%232c2c2e' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <title>Billy</title>
 <style>
@@ -167,6 +168,11 @@ a.btn{text-decoration:none;color:inherit}
 .check{display:flex;align-items:center;gap:8px;font-size:14px}
 .check input{width:auto}
 
+/* ===== Splash (inline, zero extra requests) ===== */
+#splash{position:fixed;inset:0;background:#ececee;display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity .25s}
+#splash svg{border-radius:20px;animation:splashIn .35s ease-out}
+@keyframes splashIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+
 /* ===== Toast ===== */
 #toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30}
 #toast.show{opacity:1}
@@ -199,6 +205,7 @@ a.btn{text-decoration:none;color:inherit}
 </style>
 </head>
 <body>
+<div id="splash"><svg width="88" height="88" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#57b957"/><path d="M30 18h40v56l-6.7-6-6.6 6-6.7-6-6.7 6-6.6-6-6.7 6z" fill="#fff"/><circle cx="41" cy="38" r="3.5" fill="#2c2c2e"/><circle cx="59" cy="38" r="3.5" fill="#2c2c2e"/><path d="M40 49q10 9 20 0" fill="none" stroke="#2c2c2e" stroke-width="3.5" stroke-linecap="round"/></svg></div>
 <div id="app">
   <div class="topbar">
     <div class="brand"><svg width="24" height="24" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#57b957"/><path d="M30 18h40v56l-6.7-6-6.6 6-6.7-6-6.7 6-6.6-6-6.7 6z" fill="#fff"/><circle cx="41" cy="38" r="3.5" fill="#2c2c2e"/><circle cx="59" cy="38" r="3.5" fill="#2c2c2e"/><path d="M40 49q10 9 20 0" fill="none" stroke="#2c2c2e" stroke-width="3.5" stroke-linecap="round"/></svg>Billy</div>
@@ -1176,6 +1183,11 @@ if("serviceWorker" in navigator){
     if("periodicSync" in reg) reg.periodicSync.register("billy-badge",{minInterval:12*60*60*1000}).catch(()=>{});
   }).catch(()=>{});
 }
+// app is rendered — fade the splash out
+(function(){
+  const sp = document.getElementById("splash");
+  if(sp){ sp.style.opacity = "0"; setTimeout(()=>sp.remove(), 300); }
+})();
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 // Simple offline cache for the app shell + background badge refresh.
-const CACHE = "billy-v3";
-const ASSETS = ["./", "index.html", "manifest.json"];
+const CACHE = "billy-v6";
+const ASSETS = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-192m.png", "icon-512m.png", "apple-touch-icon.png", "icon.svg"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -14,17 +14,22 @@ self.addEventListener("activate", e => {
   self.clients.claim();
 });
 
-// Network-first for the app shell (so updates arrive), cache fallback offline.
+// Stale-while-revalidate: serve the cached shell instantly (no white screen
+// waiting on the network), refresh the cache in the background. Updates
+// therefore apply one launch later — fine for a personal app.
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return; // let sync POSTs pass through
   e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(e.request).then(r => r || caches.match("index.html")))
+    caches.match(e.request).then(cached => {
+      const network = fetch(e.request)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => cached || caches.match("index.html"));
+      return cached || network;
+    })
   );
 });
 
