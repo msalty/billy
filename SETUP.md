@@ -1,4 +1,4 @@
-# Billy — Setup Guide
+# Billy Setup Guide
 
 A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, works fully offline, and syncs to a Google Sheet you own.
 
@@ -11,7 +11,7 @@ A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, 
 | `sw.js` | Service worker — makes it work offline |
 | `Code.gs` | Google Apps Script backend — syncs to a Google Sheet |
 
-## Step 1 — Set up the Google Sheet backend (~5 min, one time)
+## Step 1: Set up the Google Sheet backend (~5 min, one time)
 
 1. Go to [sheets.new](https://sheets.new) and create a blank sheet named e.g. **Bill Tracker DB**.
 2. In the sheet: **Extensions → Apps Script**. Delete the boilerplate and paste in all of `Code.gs`.
@@ -24,7 +24,7 @@ A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, 
 
 > To update the script later, use **Deploy → Manage deployments → ✏ Edit → New version**, so the URL stays the same.
 
-## Step 2 — Host the app on GitHub Pages (~5 min, one time)
+## Step 2: Host the app on GitHub Pages (~5 min, one time)
 
 1. Create a free account at [github.com](https://github.com) if needed.
 2. Create a new repository, e.g. `bill-tracker` (public or private both work; Pages on private repos requires a paid plan, so use **public** — the app contains no personal data, your data lives only on your devices and in your Sheet).
@@ -32,7 +32,7 @@ A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, 
 4. Repo **Settings → Pages → Source: Deploy from a branch → Branch: main / root → Save**.
 5. After a minute your app is live at `https://<username>.github.io/bill-tracker/`.
 
-## Step 3 — Connect and install on each device
+## Step 3: Connect and install on each device
 
 1. Open the URL in a browser and tap **⚙︎** (bottom right).
 2. Paste the Apps Script **Web app URL** and your **token**, leave auto-sync on, Save.
