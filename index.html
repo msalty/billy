@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Billy">
@@ -18,7 +18,13 @@
   --side-bg:#3a3a3c; --side-bg2:#2c2c2e; --side-txt:#f2f2f7; --side-txt2:#aeaeb2;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+/* overflow:hidden — the app scrolls internally (.main, .detail-body, modals),
+   so the body itself must never scroll; a scrolled body is what made the whole
+   app "slide up" and misplace the bottom bar after rotating on iOS */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+/* text-size-adjust stops iOS from inflating font sizes after rotation;
+   touch-action kills double-tap zoom */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 /* #ececee matches the top/bottom bars so the status-bar area, home-indicator
    area, and overscroll rubber-banding all blend with the app chrome */
 html{background:#ececee}
@@ -27,7 +33,7 @@ button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font:inherit}
 
 /* ===== Layout ===== */
-#app{display:flex;flex-direction:column;height:100%}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh} /* dvh tracks the real viewport through rotations */
 .topbar{display:flex;align-items:center;gap:10px;background:#ececee;border-bottom:1px solid var(--line);flex-wrap:wrap;
   padding:calc(10px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) 10px calc(14px + env(safe-area-inset-left, 0px))}
 .topbar select{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff}
@@ -201,6 +207,13 @@ a.btn{text-decoration:none;color:inherit}
   .pay-table td{padding:11px 8px} /* comfortable touch target for tap-to-edit rows */
   .income-row{padding:10px 0}
   .topbar .search{max-width:none}
+  /* floating pill toolbar — matches the floating-card look of the mobile layout */
+  .bottombar{position:fixed;left:26px;right:26px;bottom:max(12px, env(safe-area-inset-bottom));
+    border:1px solid var(--line);border-radius:22px;
+    background:rgba(236,236,238,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 8px 24px rgba(0,0,0,.16);padding:9px 12px}
+  .bottombar .btn{background:rgba(255,255,255,.85)}
+  .main{padding-bottom:74px} /* keep the last card clear of the floating bar */
 }
 </style>
 </head>
@@ -392,6 +405,10 @@ a.btn{text-decoration:none;color:inherit}
       <button class="btn" onclick="exportCSV()">Export CSV</button>
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
     </div>
+    <div class="modal-actions" style="justify-content:flex-start;align-items:center">
+      <button class="btn" onclick="checkForUpdate()">Check for Update</button>
+      <span id="verInfo" style="font-size:12px;color:var(--txt2)"></span>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('settingsModal')">Cancel</button>
       <button class="btn primary" onclick="saveSettings()">Save</button>
@@ -403,6 +420,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
+const APP_VER = "1.0 (2026-07-20)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -1026,7 +1044,35 @@ function openSettings(){
   document.getElementById("stToken").value = s.syncToken||"";
   document.getElementById("stAuto").checked = s.autoSync!==false;
   document.getElementById("stReminder").value = s.reminderDays||0;
+  document.getElementById("verInfo").textContent = "Version "+APP_VER;
   openModal("settingsModal");
+}
+async function checkForUpdate(){
+  toast("Checking for update…");
+  try{
+    if("serviceWorker" in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg) await reg.update(); // pull a new sw.js if one exists
+    }
+    // no-store bypasses both the HTTP cache and (in sw v7+) the SW cache
+    const res = await fetch("index.html", {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const freshText = await res.clone().text();
+    if("caches" in window){
+      const cur = (await caches.match("index.html")) || (await caches.match("./"));
+      if(cur && (await cur.clone().text()) === freshText){ toast("Billy is already up to date"); return; }
+      // stamp the fresh shell into every cache so the reload serves it
+      for(const k of await caches.keys()){
+        const c = await caches.open(k);
+        await c.put("index.html", res.clone());
+        await c.put("./", res.clone());
+      }
+    }
+    toast("Update found — reloading…");
+    setTimeout(()=>location.reload(), 700);
+  }catch(e){
+    toast("Couldn't check for updates"+(navigator.onLine?"":" — you're offline"));
+  }
 }
 function saveSettings(){
   const old = settings();
@@ -1183,6 +1229,11 @@ if("serviceWorker" in navigator){
     if("periodicSync" in reg) reg.periodicSync.register("billy-badge",{minInterval:12*60*60*1000}).catch(()=>{});
   }).catch(()=>{});
 }
+// iOS: block pinch zoom (gesturestart is the non-standard Safari pinch event),
+// and snap any stray body scroll offset back to 0 after rotation
+document.addEventListener("gesturestart", e=>e.preventDefault());
+window.addEventListener("resize", ()=>window.scrollTo(0,0));
+window.addEventListener("orientationchange", ()=>setTimeout(()=>window.scrollTo(0,0), 60));
 // app is rendered — fade the splash out
 (function(){
   const sp = document.getElementById("splash");

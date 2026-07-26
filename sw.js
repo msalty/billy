@@ -1,5 +1,5 @@
 // Simple offline cache for the app shell + background badge refresh.
-const CACHE = "billy-v6";
+const CACHE = "billy-v7";
 const ASSETS = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-192m.png", "icon-512m.png", "apple-touch-icon.png", "icon.svg"];
 
 self.addEventListener("install", e => {
@@ -19,6 +19,7 @@ self.addEventListener("activate", e => {
 // therefore apply one launch later — fine for a personal app.
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return; // let sync POSTs pass through
+  if (e.request.cache === "no-store") return; // forced update checks go straight to network
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request)
