@@ -396,7 +396,8 @@ a.btn{text-decoration:none;color:inherit}
     <div class="field"><label>Sync token (must match TOKEN in the script)</label><input id="stToken"></div>
     <div class="field check"><input id="stAuto" type="checkbox"><label for="stAuto" style="margin:0;font-size:14px;color:var(--txt)">Auto-sync on launch &amp; after changes</label></div>
     <div class="field"><label>App icon badge — shows how many bills are overdue or due within 7 days. Requires the installed app; on iPhone tap Enable once to grant permission.</label>
-      <button class="btn" onclick="enableBadge()">Enable Badge</button></div>
+      <button class="btn" onclick="enableBadge()">Enable Badge</button>
+      <div id="badgeStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
     <div class="field"><label>Email reminders — send an email when a bill is due within this many days (0 = off). Each bill is emailed once per due date, never repeatedly. Requires the one-time trigger setup in the guide.</label>
       <input id="stReminder" type="number" min="0" max="30" inputmode="numeric" style="width:80px"></div>
     <div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap">
@@ -420,7 +421,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.0 (2026-07-20)";
+const APP_VER = "1.1 (2026-07-29)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -475,11 +476,14 @@ function allCats(){
 function getCat(k){ return allCats()[k] || BUILTIN_CATS.other; }
 const REPEAT_LABEL = {monthly:"Every month",weekly:"Every week",biweekly:"Every 2 weeks",quarterly:"Every quarter",semiannual:"Every 6 months",yearly:"Every year",once:"One time"};
 
+// false when the saved data could not be read at all (storage blocked, corrupt
+// JSON). Every bill then looks gone, which must not be mistaken for "nothing due".
+let dataLoaded = true;
 let db = load();
 function load(){
   try{ const d = JSON.parse(localStorage.getItem("billtracker.data")||"{}");
     return {bills:d.bills||{}, payments:d.payments||{}, incomes:d.incomes||{}, categories:d.categories||{}};
-  }catch(e){ return {bills:{},payments:{},incomes:{},categories:{}}; }
+  }catch(e){ dataLoaded = false; return {bills:{},payments:{},incomes:{},categories:{}}; }
 }
 function persist(){ localStorage.setItem("billtracker.data", JSON.stringify(db)); markDirty(); updateBadge(); }
 function settings(){ try{return JSON.parse(localStorage.getItem("billtracker.settings")||"{}")}catch(e){return{}} }
@@ -1045,6 +1049,7 @@ function openSettings(){
   document.getElementById("stAuto").checked = s.autoSync!==false;
   document.getElementById("stReminder").value = s.reminderDays||0;
   document.getElementById("verInfo").textContent = "Version "+APP_VER;
+  refreshBadgeStatus();
   openModal("settingsModal");
 }
 async function checkForUpdate(){
@@ -1149,7 +1154,10 @@ async function doSync(manual){
     localStorage.setItem("billtracker.data", JSON.stringify(db));
     localStorage.removeItem("billtracker.dirty");
     localStorage.setItem("billtracker.lastSync", Date.now());
-    renderAll(); refreshDetail();
+    // A sync can add a bill, advance a due date paid on another device, or
+    // archive one — all of which change the count. Without this the badge stays
+    // on whatever the pre-sync data said until the next edit.
+    renderAll(); refreshDetail(); updateBadge();
     if(manual) toast("Synced");
   }catch(e){
     if(manual) toast("Sync failed: "+e.message);
@@ -1178,36 +1186,93 @@ window.addEventListener("online", ()=>{ updateSyncStatus(); if(localStorage.getI
 window.addEventListener("offline", updateSyncStatus);
 
 /* ================= App icon badge ================= */
+let badgeErr = null;      // name of the last setAppBadge/clearAppBadge rejection
+let badgeTimer = null;    // recompute when the date rolls over under us
 function badgeCount(){ // overdue + due within 7 days
   return activeBills().filter(b=>b.nextDue && daysUntil(b.nextDue)<=7).length;
 }
 function updateBadge(){
-  saveBadgeData(); // keep the service worker's copy fresh for background updates
-  if(!("setAppBadge" in navigator)) return;
+  saveBadgeData();      // keep the service worker's copy fresh for background updates
+  scheduleBadgeRefresh();
+  if(!("setAppBadge" in navigator)) return Promise.resolve();
+  // Never clear on data we failed to read — that wipes a badge the user still needs.
+  if(!dataLoaded) return Promise.resolve();
   const n = badgeCount();
-  (n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(()=>{});
+  // iOS rejects with NotAllowedError once notification permission is gone (revoked,
+  // or dropped when the Home Screen app was re-added), which is why the badge can
+  // quietly stop working. Remember why so Settings can say so.
+  return (n>0 ? navigator.setAppBadge(n) : navigator.clearAppBadge())
+    .then(()=>{ badgeErr = null; })
+    .catch(e=>{ badgeErr = (e && e.name) || "error"; });
 }
+// The badge is otherwise only recomputed on edits and on resume, so a bill that
+// crosses into the 7-day window while the app sits in the background never shows
+// up. Re-run at local midnight, and at least every 6h in case the timer was
+// suspended and fires late.
+function scheduleBadgeRefresh(){
+  clearTimeout(badgeTimer);
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 30);
+  badgeTimer = setTimeout(updateBadge, Math.min(midnight - now, 6*60*60*1000));
+}
+let badgeIDB = null; // one connection, reused — reopening per save leaked them
 function saveBadgeData(){ // due dates for the service worker (it can't read localStorage)
+  if(!dataLoaded) return;
+  const write = conn=>{
+    try{ conn.transaction("kv","readwrite").objectStore("kv")
+      .put(activeBills().filter(b=>b.nextDue).map(b=>b.nextDue), "dueDates"); }catch(e){}
+  };
+  if(badgeIDB){ write(badgeIDB); return; }
   try{
     const req = indexedDB.open("billy", 1);
-    req.onupgradeneeded = ()=>req.result.createObjectStore("kv");
+    req.onupgradeneeded = ()=>{ try{ req.result.createObjectStore("kv"); }catch(e){} };
     req.onsuccess = ()=>{
-      try{ req.result.transaction("kv","readwrite").objectStore("kv")
-        .put(activeBills().filter(b=>b.nextDue).map(b=>b.nextDue), "dueDates"); }catch(e){}
+      badgeIDB = req.result;
+      badgeIDB.onclose = ()=>{ badgeIDB = null; };
+      write(badgeIDB);
     };
+    req.onerror = ()=>{};
   }catch(e){}
 }
+function badgeStatus(){
+  if(!("setAppBadge" in navigator)) return "Not available here — open the app from your Home Screen.";
+  if("Notification" in window && Notification.permission === "denied")
+    return "Blocked — notifications are off for Billy. Remove the Home Screen app and re-add it to be asked again.";
+  if("Notification" in window && Notification.permission !== "granted")
+    return "Needs permission — tap Enable Badge.";
+  if(badgeErr) return "Blocked by the system ("+badgeErr+") — tap Enable Badge to retry.";
+  const n = badgeCount();
+  return n>0 ? "On — showing "+n+"." : "On — nothing due in the next 7 days.";
+}
+function refreshBadgeStatus(){
+  const el = document.getElementById("badgeStatus");
+  if(el) el.textContent = "Status: "+badgeStatus();
+}
 async function enableBadge(){
-  if(!("setAppBadge" in navigator)){ toast("Badging not supported in this browser"); return; }
+  if(!("setAppBadge" in navigator)){
+    toast("Badging needs the installed app — add Billy to your Home Screen first");
+    refreshBadgeStatus(); return;
+  }
   if("Notification" in window && Notification.permission !== "granted"){
+    if(Notification.permission === "denied"){
+      toast("Notifications are blocked — remove and re-add the Home Screen app to be asked again");
+      refreshBadgeStatus(); return;
+    }
     try{
       const p = await Notification.requestPermission();
-      if(p !== "granted"){ toast("Permission declined — the badge may not appear"); return; }
+      if(p !== "granted"){ toast("Permission declined — the badge can't show"); refreshBadgeStatus(); return; }
     }catch(e){}
   }
-  updateBadge(); toast("Badge enabled");
+  await updateBadge(); // report what actually happened, not what we hoped
+  if(badgeErr) toast("The system refused the badge ("+badgeErr+")");
+  else toast(badgeCount()>0 ? "Badge enabled — showing "+badgeCount() : "Badge enabled — nothing due in the next 7 days");
+  refreshBadgeStatus();
 }
-document.addEventListener("visibilitychange", updateBadge);
+// iOS resumes a Home Screen app in several ways; visibilitychange alone misses
+// restores from the page cache and plain window refocus.
+document.addEventListener("visibilitychange", ()=>{ updateBadge(); });
+window.addEventListener("pageshow", ()=>{ updateBadge(); });
+window.addEventListener("focus", ()=>{ updateBadge(); });
 
 /* ================= Boot ================= */
 // migration: a reminderDays saved by an older app version has no timestamp,
