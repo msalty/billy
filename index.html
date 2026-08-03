@@ -145,6 +145,10 @@ a.btn{text-decoration:none;color:inherit}
 .funded-item:hover{background:#f5f5f7}
 .funded-item span{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .funded-item b{font-variant-numeric:tabular-nums}
+.funded-amt{text-align:right;white-space:nowrap;flex:none}
+.funded-amt b{font-variant-numeric:tabular-nums}
+.funded-amt i{font-style:normal;font-weight:500;font-size:11px;color:var(--txt2);margin-left:1px}
+.funded-amt em{display:block;font-style:normal;font-size:10.5px;color:var(--txt2);margin-top:1px;font-weight:500}
 .funded-item.total{background:#fafafa;font-weight:600;cursor:default;color:var(--txt2)}
 .funded-item.total:hover{background:#fafafa}
 .detail-right{flex:1;min-width:280px;padding:18px}
@@ -443,7 +447,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.4 (2026-08-03)";
+const APP_VER = "1.5 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -497,6 +501,7 @@ function allCats(){
 }
 function getCat(k){ return allCats()[k] || BUILTIN_CATS.other; }
 const REPEAT_LABEL = {monthly:"Every month",weekly:"Every week",biweekly:"Every 2 weeks",quarterly:"Every quarter",semiannual:"Every 6 months",yearly:"Every year",once:"One time"};
+const REPEAT_SHORT = {monthly:"/mo",weekly:"/wk",biweekly:"/2wk",quarterly:"/qtr",semiannual:"/6mo",yearly:"/yr",once:" once"};
 
 // false when the saved data could not be read at all (storage blocked, corrupt
 // JSON). Every bill then looks gone, which must not be mistaken for "nothing due".
@@ -624,11 +629,11 @@ function billAverage(b){
   return ps.reduce((s,p)=>s+p.amount,0)/ps.length;
 }
 function lastPayment(b){ const ps=paymentsFor(b.id); return ps[0]||null; }
-function monthlyEquivalent(b){
-  const amt = b.amountDue || billAverage(b);
-  const f = {weekly:52/12, biweekly:26/12, monthly:1, quarterly:1/3, semiannual:1/6, yearly:1/12, once:0}[b.repeat] ?? 1;
-  return amt*f;
-}
+// How many times a year each interval bills, over 12 — used to put bills on
+// different cadences onto a common monthly scale. "once" is 0: a one-time
+// charge doesn't recur, so it contributes nothing to an ongoing monthly figure.
+const MONTH_FACTOR = {weekly:52/12, biweekly:26/12, monthly:1, quarterly:1/3, semiannual:1/6, yearly:1/12, once:0};
+function monthlyEquivalent(b){ return expectedAmount(b) * (MONTH_FACTOR[b.repeat] ?? 1); }
 function monthPayments(){
   const pre = todayStr().slice(0,7);
   return Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre));
@@ -785,6 +790,9 @@ function openDetail(id){
   const hi = ps.length?ps.reduce((a,p)=>p.amount>a.amount?p:a):null;
   const lo = ps.length?ps.reduce((a,p)=>p.amount<a.amount?p:a):null;
   const funder = funderOf(b), kids = fundedChildren(id);
+  // Only explain the monthly-equivalent maths when something isn't monthly —
+  // a card carrying only monthly subscriptions needs no caveat.
+  const mixedCadence = kids.some(k=>k.repeat!=="monthly");
 
   document.getElementById("dLeft").innerHTML = `
     <div class="due-big">${b.nextDue?dueLabel(b.nextDue):"No due date"}</div>
@@ -807,9 +815,20 @@ function openDetail(id){
       <div class="funded-note">Charged to this bill, so it isn't counted again in Monthly Balance.</div>`:""}
     ${b.notes?`<h4>NOTES</h4><div class="val">${esc(b.notes)}</div>`:""}
     ${kids.length?`<h4>CHARGED TO THIS BILL</h4>
-      <div class="funded-list">${kids.map(k=>`<div class="funded-item" onclick="openDetail('${k.id}')"><span>${svgIcon(getCat(k.category).icon,13)} ${esc(k.name)}</span><b>${fmtMoney(expectedAmount(k))}</b></div>`).join("")}
-        <div class="funded-item total"><span>${kids.length} recurring charge${kids.length>1?"s":""}</span><b>${fmtMoney(kids.reduce((s,k)=>s+expectedAmount(k),0))}</b></div></div>
-      <div class="funded-note">Recurring charges you track in Billy. Your actual statement may also include one-off spending.</div>`:""}`;
+      <div class="funded-list">${kids.map(k=>{
+        const me = monthlyEquivalent(k);
+        // Each row keeps the amount as it actually bills, so it can be matched
+        // against a statement; the ≈ line shows the share the total is using.
+        const sub = (k.repeat!=="monthly" && me) ? `<em>≈ ${fmtMoney(me)}/mo</em>` : "";
+        return `<div class="funded-item" onclick="openDetail('${k.id}')">
+          <span>${svgIcon(getCat(k.category).icon,13)} ${esc(k.name)}</span>
+          <div class="funded-amt"><b>${fmtMoney(expectedAmount(k))}<i>${REPEAT_SHORT[k.repeat]||""}</i></b>${sub}</div></div>`;
+      }).join("")}
+        <div class="funded-item total"><span>${kids.length} charge${kids.length>1?"s":""}</span>
+          <div class="funded-amt"><b>${mixedCadence?"≈ ":""}${fmtMoney(kids.reduce((s,k)=>s+monthlyEquivalent(k),0))}<i>/mo</i></b></div></div></div>
+      <div class="funded-note">${mixedCadence
+        ? "A monthly equivalent — charges that don't bill monthly are spread across the year, so no single statement looks like this. "
+        : ""}Your actual statement may also include one-off spending.</div>`:""}`;
 
   document.getElementById("dStats").innerHTML = `
     <div class="stat-block"><div class="k">HIGHEST PAYMENT</div><div class="v">${hi?fmtMoney(hi.amount):"—"}</div><div class="s">${hi?fmtDateLong(hi.date):""}</div></div>

@@ -146,7 +146,7 @@ Nothing is hidden. The sidebar counts still include every bill so they match the
 
 Two things come free with it:
 
-- A card's detail view lists **Charged to this bill** — every recurring charge that posts to it, with a total. (That's what Billy knows about; your real statement may also include one-off spending.)
+- A card's detail view lists **Charged to this bill** — every recurring charge that posts to it. Each row shows the amount as it actually bills (`$324.95/yr`), so you can match it against a statement, and the total is a **monthly equivalent**: anything that doesn't bill monthly is spread across the year, with its monthly share shown under the row. Adding a yearly charge to monthly ones directly would produce a number that's neither. (The total covers what Billy knows about; your real statement may also include one-off spending.)
 - The filter dropdown gains a **Charged to** group. When a card is reissued, pick it and you have the exact list of billers to go update.
 
 Notes: every existing bill defaults to direct, so the feature is invisible until you use it. The picker won't offer a bill that already draws on the one you're editing, so funding can't loop. Archiving or deleting a funder puts its charges back into your balance — they have to come from somewhere once the card's statement is gone — and the app tells you how many bills that affects before you confirm.
