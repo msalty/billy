@@ -407,14 +407,21 @@ a.btn{text-decoration:none;color:inherit}
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h3>Sync &amp; Data</h3>
-    <div class="field"><label>Google Apps Script Web App URL</label><input id="stUrl" placeholder="https://script.google.com/macros/s/…/exec"></div>
-    <div class="field"><label>Sync token (must match TOKEN in the script)</label><input id="stToken"></div>
+    <div class="field"><label>Google Apps Script Web App URL</label><input id="stUrl" placeholder="https://script.google.com/macros/s/…/exec" oninput="refreshIcsField()"></div>
+    <div class="field"><label>Sync token (must match TOKEN in the script)</label><input id="stToken" oninput="refreshIcsField()"></div>
     <div class="field check"><input id="stAuto" type="checkbox"><label for="stAuto" style="margin:0;font-size:14px;color:var(--txt)">Auto-sync on launch &amp; after changes</label></div>
     <div class="field"><label>App icon badge — shows how many bills are overdue or due within 7 days. Requires the installed app; on iPhone tap Enable once to grant permission.</label>
       <button class="btn" onclick="enableBadge()">Enable Badge</button>
       <div id="badgeStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
     <div class="field"><label>Email reminders — send an email when a bill is due within this many days (0 = off). Each bill is emailed once per due date, never repeatedly. Requires the one-time trigger setup in the guide.</label>
       <input id="stReminder" type="number" min="0" max="30" inputmode="numeric" style="width:80px"></div>
+    <div class="field"><label>Calendar feed — subscribe from Google, Apple, or Outlook Calendar to see due dates alongside everything else, on devices that never open Billy.</label>
+      <input id="stIcs" readonly onclick="this.select()" placeholder="Fill in the sync URL and token above" style="font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:8px">
+        <button class="btn" onclick="copyIcsUrl()">Copy Link</button>
+        <a class="btn" id="stIcsWebcal" href="#" target="_blank" rel="noopener">Subscribe (Apple / Outlook)</a>
+      </div>
+      <div style="font-size:11.5px;color:var(--txt2);margin-top:6px;line-height:1.4">The link contains your token — anyone who has it can read your bill names and amounts. Read-only: subscribing can't change your data.</div></div>
     <div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap">
       <button class="btn" onclick="exportJSON()">Backup JSON</button>
       <button class="btn" onclick="document.getElementById('importFile').click()">Restore JSON</button>
@@ -436,7 +443,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.2 (2026-08-03)";
+const APP_VER = "1.3 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -1153,7 +1160,41 @@ function openSettings(){
   document.getElementById("stReminder").value = s.reminderDays||0;
   document.getElementById("verInfo").textContent = "Version "+APP_VER;
   refreshBadgeStatus();
+  refreshIcsField(); // setting .value above doesn't fire oninput
   openModal("settingsModal");
+}
+
+/* ================= Calendar feed ================= */
+// Built from the live fields rather than saved settings, so the link is right
+// as soon as you type the URL and token — no need to Save first.
+function icsFeedUrl(){
+  const url = (document.getElementById("stUrl").value||"").trim();
+  const tok = (document.getElementById("stToken").value||"").trim();
+  if(!url || !tok) return "";
+  return url + (url.includes("?")?"&":"?") + "ics=1&token=" + encodeURIComponent(tok);
+}
+function refreshIcsField(){
+  const url = icsFeedUrl();
+  document.getElementById("stIcs").value = url;
+  // webcal:// makes Apple Calendar and Outlook offer to *subscribe* rather than
+  // download a one-off copy that never updates.
+  const w = document.getElementById("stIcsWebcal");
+  w.href = url ? url.replace(/^https?:\/\//i, "webcal://") : "#";
+  w.style.opacity = url ? "" : ".45";
+  w.style.pointerEvents = url ? "" : "none";
+}
+function copyIcsUrl(){
+  const url = icsFeedUrl();
+  if(!url){ toast("Fill in the sync URL and token first"); return; }
+  const fallback = ()=>{
+    const i = document.getElementById("stIcs");
+    i.select(); i.setSelectionRange(0, 99999); // iOS needs the explicit range
+    try{ document.execCommand("copy"); toast("Calendar feed link copied"); }
+    catch(e){ toast("Copy failed — tap the link to select it"); }
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(url).then(()=>toast("Calendar feed link copied")).catch(fallback);
+  else fallback();
 }
 async function checkForUpdate(){
   toast("Checking for update…");

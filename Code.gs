@@ -64,7 +64,9 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  if (!e.parameter || e.parameter.token !== TOKEN) return json({ error: "Invalid token" });
+  const p = (e && e.parameter) || {};
+  if (p.token !== TOKEN) return json({ error: "Invalid token" });
+  if (p.ics) return ical(buildIcs(p));
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const data = {};
   for (const table in TABLES) data[table] = readTable(ss, table);
@@ -118,6 +120,179 @@ function writeTable(ss, table, records) {
   sh.getRange(1, 1, rows.length, cols.length).setValues(rows);
   // Keep date-ish columns as plain text so they round-trip unchanged.
   sh.getRange(1, 1, rows.length, cols.length).setNumberFormat("@");
+}
+
+/* ===================== Calendar feed =====================
+ * GET .../exec?token=YOUR_TOKEN&ics=1 returns an iCalendar feed of upcoming
+ * due dates. Subscribe to it from Google Calendar, Apple Calendar, or Outlook
+ * and your bills show up next to everything else in your life, on devices that
+ * never open Billy. Read-only — subscribing changes nothing in the Sheet.
+ *
+ * Optional parameters:
+ *   &months=18    how far ahead to project (1-60, default 18)
+ *   &alarm=2      add a reminder N days before each due date (0 = none)
+ *   &cashonly=1   skip bills charged to another bill you track
+ *
+ * The feed lists each occurrence explicitly rather than using an RRULE. That
+ * is deliberate: Billy's month-end rule walks Jan 31 -> Feb 28 -> Mar 31, and
+ * RFC 5545 recurrence cannot express it (BYMONTHDAY=31 silently skips every
+ * month without a 31st). Explicit dates keep the calendar identical to the app.
+ */
+const ICS_MONTHS = 18;
+// Mirrors REPEAT_LABEL in index.html so the calendar reads like the app.
+const ICS_REPEAT = {
+  monthly: "Every month", weekly: "Every week", biweekly: "Every 2 weeks",
+  quarterly: "Every quarter", semiannual: "Every 6 months",
+  yearly: "Every year", once: "One time"
+};
+
+function buildIcs(params) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const bills = readTable(ss, "bills");
+  const payments = readTable(ss, "payments");
+  const months = clampInt(params.months, 1, 60, ICS_MONTHS);
+  const alarm = clampInt(params.alarm, 0, 60, 0);
+  const cashOnly = params.cashonly === "1" || params.cashonly === "true";
+
+  // Running average per bill, for the ones whose amount varies.
+  const sums = {}, counts = {};
+  for (const pid in payments) {
+    const pay = payments[pid];
+    if (pay.deleted || !pay.billId) continue;
+    sums[pay.billId] = (sums[pay.billId] || 0) + Number(pay.amount || 0);
+    counts[pay.billId] = (counts[pay.billId] || 0) + 1;
+  }
+
+  const horizon = new Date();
+  horizon.setMonth(horizon.getMonth() + months);
+  const stamp = icsStamp(new Date());
+  const lines = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Billy//Bill Tracker//EN",
+    "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    "X-WR-CALNAME:Billy — Bills", "NAME:Billy — Bills",
+    "X-WR-CALDESC:Upcoming bill due dates from Billy",
+    "REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H"
+  ];
+
+  for (const id in bills) {
+    const b = bills[id];
+    if (b.deleted || b.archived || !b.nextDue) continue;
+    // Same rule as the app: a bill funded by another tracked bill is a charge
+    // on that bill, not a separate withdrawal.
+    const funder = b.fundedBy && bills[b.fundedBy];
+    const passThrough = !!(funder && !funder.deleted && !funder.archived);
+    if (cashOnly && passThrough) continue;
+
+    const exact = Number(b.amountDue || 0);
+    const avg = counts[id] ? sums[id] / counts[id] : 0;
+    const amount = exact || avg;
+    const label = !amount ? "" : (exact ? " — " + icsMoney(amount) : " — ~" + icsMoney(amount));
+    const summary = b.name + label + (b.autopay ? " (autopay)" : "");
+
+    const desc = [];
+    if (b.repeat) desc.push("Repeats: " + (ICS_REPEAT[b.repeat] || b.repeat));
+    if (!exact && avg) desc.push("Amount varies — ~" + icsMoney(avg) + " average of " + counts[id] + " payments");
+    if (passThrough) desc.push("Charged to: " + funder.name + " (not a separate withdrawal)");
+    if (b.autopay) desc.push("Autopay is on — no action needed.");
+    if (b.url) desc.push("Pay: " + b.url);
+    if (b.notes) desc.push(String(b.notes));
+
+    let d = String(b.nextDue);
+    for (let i = 0; i < 500 && d; i++) {
+      const dt = parseIcsDate(d);
+      if (!dt) break;
+      if (dt > horizon) break;
+      lines.push("BEGIN:VEVENT");
+      // Stable per bill+date, so refetching updates events instead of duplicating them.
+      lines.push("UID:" + id + "-" + d.replace(/-/g, "") + "@billy");
+      lines.push("DTSTAMP:" + stamp);
+      // All-day: a bill is due on a date, not at a time. DTEND is exclusive.
+      lines.push("DTSTART;VALUE=DATE:" + d.replace(/-/g, ""));
+      lines.push("DTEND;VALUE=DATE:" + nextDayCompact(d));
+      lines.push(fold("SUMMARY:" + icsEsc(summary)));
+      if (desc.length) lines.push(fold("DESCRIPTION:" + icsEsc(desc.join("\n"))));
+      if (b.url) lines.push(fold("URL:" + icsEsc(b.url)));
+      lines.push("TRANSP:TRANSPARENT"); // due dates shouldn't mark you busy
+      if (alarm) {
+        lines.push("BEGIN:VALARM", "ACTION:DISPLAY",
+          fold("DESCRIPTION:" + icsEsc(summary)),
+          "TRIGGER:-P" + alarm + "D", "END:VALARM");
+      }
+      lines.push("END:VEVENT");
+      if (b.repeat === "once") break;
+      d = addIntervalIcs(d, b.repeat);
+    }
+  }
+
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n") + "\r\n";
+}
+
+// Ported from the app so the calendar and the app agree on every date,
+// including the Jan 31 -> Feb 28 -> Mar 31 month-end walk.
+function addIntervalIcs(dateStr, repeat) {
+  const d = parseIcsDate(dateStr);
+  if (!d) return null;
+  const day = d.getDate();
+  switch (repeat) {
+    case "weekly": d.setDate(d.getDate() + 7); break;
+    case "biweekly": d.setDate(d.getDate() + 14); break;
+    case "monthly": d.setMonth(d.getMonth() + 1); fixDayIcs(d, day); break;
+    case "quarterly": d.setMonth(d.getMonth() + 3); fixDayIcs(d, day); break;
+    case "semiannual": d.setMonth(d.getMonth() + 6); fixDayIcs(d, day); break;
+    case "yearly": d.setFullYear(d.getFullYear() + 1); fixDayIcs(d, day); break;
+    default: return null; // once
+  }
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+}
+function fixDayIcs(d, wantDay) {
+  if (d.getDate() !== wantDay && d.getDate() < 5) d.setDate(0);
+}
+function parseIcsDate(s) {
+  const p = String(s).split("-").map(Number);
+  if (p.length !== 3 || p.some(isNaN)) return null;
+  return new Date(p[0], p[1] - 1, p[2]);
+}
+function nextDayCompact(dateStr) {
+  const d = parseIcsDate(dateStr);
+  d.setDate(d.getDate() + 1);
+  return "" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+}
+function icsStamp(d) {
+  return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + "T"
+    + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
+}
+function icsMoney(n) {
+  const s = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (n < 0 ? "-$" : "$") + s;
+}
+function icsEsc(s) {
+  return String(s == null ? "" : s)
+    .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,")
+    .replace(/\r\n|\r|\n/g, "\\n");
+}
+// RFC 5545 caps a content line at 75 octets; continuations start with a space.
+// Counting octets (not characters) keeps multi-byte names from being split
+// mid-character, which some clients reject.
+function fold(line) {
+  const out = [];
+  let cur = "", bytes = 0;
+  for (const ch of line) {
+    const c = ch.codePointAt(0);
+    const n = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    if (bytes + n > 73) { out.push(cur); cur = " "; bytes = 1; }
+    cur += ch; bytes += n;
+  }
+  out.push(cur);
+  return out.join("\r\n");
+}
+function clampInt(v, lo, hi, dflt) {
+  const n = Math.floor(Number(v));
+  if (!isFinite(n)) return dflt;
+  return Math.min(hi, Math.max(lo, n));
+}
+function ical(text) {
+  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.ICAL);
 }
 
 /* ===================== Email reminders =====================

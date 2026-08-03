@@ -9,7 +9,7 @@ A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, 
 | `index.html` | The entire app (UI + logic + local storage) |
 | `manifest.json` | Lets the app install to your home screen / dock |
 | `sw.js` | Service worker — makes it work offline |
-| `Code.gs` | Google Apps Script backend — syncs to a Google Sheet |
+| `Code.gs` | Google Apps Script backend — syncs to a Google Sheet, emails reminders, publishes the calendar feed |
 
 ## Step 1 — Set up the Google Sheet backend (~5 min, one time)
 
@@ -87,6 +87,34 @@ The sync script can email you when bills come due — it runs on Google's server
 2. One time, in the Sheet's **Extensions → Apps Script** editor (with the latest Code.gs): select **setupReminders** in the function dropdown, click **Run**, and authorize. This creates a daily ~8am trigger.
 
 Emails go to your own Google account address. To stop them, set days to 0 in the app (or delete the trigger under the clock icon in the Apps Script editor).
+
+## Calendar feed (optional)
+
+The sync script can also publish your due dates as an iCalendar feed, so bills show up in Google Calendar, Apple Calendar, or Outlook — including on devices that never open Billy. It's read-only; subscribing can't change your data.
+
+1. Make sure the Apps Script has the latest `Code.gs` and is **re-deployed as a new version** (Deploy → Manage deployments → ✏ Edit → New version). The feed lives on the same `/exec` URL, so an older deployment simply won't answer it.
+2. In the app: **⚙︎ Settings → Calendar feed**. The link builds itself from your sync URL and token as soon as both are filled in.
+3. Subscribe:
+   - **Apple Calendar / Outlook** — tap **Subscribe (Apple / Outlook)**, or paste the link with `https://` swapped for `webcal://`.
+   - **Google Calendar** — **Copy Link**, then on the web: *Other calendars → + → From URL → paste → Add calendar*.
+   - **Outlook web** — *Add calendar → Subscribe from web → paste*.
+
+Each bill becomes an all-day event named like `Netflix — $15.49 (autopay)`, marked free rather than busy so it doesn't make you look booked. Variable bills show their running average with a `~`. The event description carries the repeat interval, funding source, notes, and a link to the biller's site, and the event's URL field opens that site straight from the calendar.
+
+Optional parameters you can append to the link:
+
+| Parameter | Does |
+|---|---|
+| `&months=24` | How far ahead to project (1–60, default 18) |
+| `&alarm=2` | Adds a reminder 2 days before each due date (default: none) |
+| `&cashonly=1` | Skips bills [charged to another bill you track](#funding-sources) |
+
+Notes:
+
+- Calendar apps re-fetch on their own schedule — Google typically every several hours to a day, Apple on the interval you pick when subscribing. Changes in Billy reach your calendar on that cadence, not instantly, and only after they've synced to the Sheet.
+- The feed lists every occurrence explicitly rather than using a recurrence rule, so the dates match Billy exactly (a repeating rule can't reproduce its month-end behavior).
+- Archived and deleted bills are left out.
+- **The link contains your token.** Anyone who has it can read your bill names and amounts, and it may be stored on your calendar provider's servers. Treat it like a password; to revoke it, change `TOKEN` in `Code.gs` (which also means re-entering the token on each device).
 
 ## Funding sources
 
