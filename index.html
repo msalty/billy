@@ -90,6 +90,7 @@ a.btn{text-decoration:none;color:inherit}
 .status-bar.overdue{background:var(--red)}
 .status-bar.soon{background:var(--amber)}
 .autopay-badge{font-size:10px;background:#e8f4e8;color:var(--green-dark);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+.funded-chip{font-size:10px;background:#ecebf3;color:#5b5b70;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap}
 .empty{padding:60px 20px;text-align:center;color:var(--txt2)}
 
 /* ===== Sidebar ===== */
@@ -117,6 +118,10 @@ a.btn{text-decoration:none;color:inherit}
 .bal-row.total{border-top:1px solid #4a4a4e;margin-top:6px;padding-top:10px;font-size:15px}
 .bal-row.total b.neg{color:#ff8a80}
 .bal-row.total b.pos{color:#8ee08e}
+.bal-row.charged{margin-top:8px;opacity:.6;font-size:12px}
+.bal-row.charged b{font-weight:600}
+.bal-note{font-size:11px;color:var(--side-txt2);opacity:.6;line-height:1.35;margin-top:-2px}
+.stat-sub.charged{opacity:.6;font-size:12px}
 .side-btn{display:block;margin:14px auto 0;background:#1c1c1e;color:var(--side-txt);padding:8px 16px;border-radius:16px;font-size:13px}
 
 /* ===== Detail view ===== */
@@ -133,6 +138,15 @@ a.btn{text-decoration:none;color:inherit}
 .detail-actions .btn{font-size:13px;padding:7px 10px}
 .detail-left h4{font-size:11px;color:var(--txt2);letter-spacing:.5px;margin:14px 0 4px}
 .detail-left .val{font-size:15px}
+.funded-note{font-size:11.5px;color:var(--txt2);line-height:1.4;margin-top:4px}
+.funded-list{border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:2px}
+.funded-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer}
+.funded-item:last-child{border-bottom:none}
+.funded-item:hover{background:#f5f5f7}
+.funded-item span{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.funded-item b{font-variant-numeric:tabular-nums}
+.funded-item.total{background:#fafafa;font-weight:600;cursor:default;color:var(--txt2)}
+.funded-item.total:hover{background:#fafafa}
 .detail-right{flex:1;min-width:280px;padding:18px}
 .detail-right h3{color:#3b82c4;font-weight:400;font-size:21px;margin-bottom:12px}
 .stats-grid{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:26px}
@@ -302,6 +316,7 @@ a.btn{text-decoration:none;color:inherit}
     </div></div>
     <div class="field"><label>Next due date</label><input id="bfDue" type="date"></div>
     <div class="field check"><input id="bfAutopay" type="checkbox"><label for="bfAutopay" style="margin:0;font-size:14px;color:var(--txt)">Autopay enabled</label></div>
+    <div class="field"><label>Funded by — pick the bill this gets charged to (e.g. a credit card) and it won't be counted again in Monthly Balance</label><select id="bfFunder"></select></div>
     <div class="field"><label>Payment website URL (optional — adds a "Pay Online" button)</label><input id="bfUrl" type="url" placeholder="https://www.chase.com" autocapitalize="off" autocorrect="off"></div>
     <div class="field"><label>Notes</label><textarea id="bfNotes" rows="2"></textarea></div>
     <div class="modal-actions">
@@ -421,7 +436,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.1 (2026-07-29)";
+const APP_VER = "1.2 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -532,6 +547,44 @@ function activeBills(){ return Object.values(db.bills).filter(b=>!b.deleted && !
 function archivedBills(){ return Object.values(db.bills).filter(b=>!b.deleted && b.archived); }
 function activeIncomes(){ return Object.values(db.incomes).filter(i=>!i.deleted); }
 function paymentsFor(billId){ return Object.values(db.payments).filter(p=>!p.deleted && p.billId===billId).sort((a,b)=> b.date<a.date?-1:1); }
+
+/* ================= Funding sources =================
+ * A bill's fundedBy points at another bill you track (typically a credit card).
+ * The rule, applied everywhere money is totalled: a bill is excluded from
+ * cash-flow math IF AND ONLY IF its funding source is itself a tracked bill —
+ * that card's own statement already carries the charge, so counting the bill
+ * again would double-count it. The "if and only if" matters: charge something
+ * to a card you DON'T track and the charge still counts, because it is then the
+ * only representation of that money in the app. If a funder is later deleted or
+ * archived it leaves the balance, so its children resume counting on their own.
+ */
+function funderOf(b){
+  if(!b || !b.fundedBy) return null;
+  const f = db.bills[b.fundedBy];
+  return (f && !f.deleted && !f.archived) ? f : null;
+}
+function isPassThrough(b){ return !!funderOf(b); }
+function fundedChildren(id){ return activeBills().filter(b=>b.fundedBy===id); }
+function fundsAnything(id){ return activeBills().some(b=>b.fundedBy===id); }
+// Every bill that draws on `id`, directly or through a chain — used to keep the
+// funding picker acyclic (you can't fund a card with something it pays for).
+function descendantsOf(id){
+  const out = new Set();
+  (function walk(pid){
+    Object.values(db.bills).forEach(b=>{
+      if(!b.deleted && b.fundedBy===pid && !out.has(b.id)){ out.add(b.id); walk(b.id); }
+    });
+  })(id);
+  return out;
+}
+function expectedAmount(b){ return b.amountDue || billAverage(b); }
+// Split a set of bills into what leaves your bank vs what lands on a tracked card.
+function splitCash(bills){
+  const cash = bills.filter(b=>!isPassThrough(b)), charged = bills.filter(isPassThrough);
+  return { cash, charged,
+    cashAmt: cash.reduce((s,b)=>s+expectedAmount(b),0),
+    chargedAmt: charged.reduce((s,b)=>s+expectedAmount(b),0) };
+}
 function billAverage(b){
   const ps = paymentsFor(b.id);
   if(!ps.length) return b.amountDue||0;
@@ -543,9 +596,17 @@ function monthlyEquivalent(b){
   const f = {weekly:52/12, biweekly:26/12, monthly:1, quarterly:1/3, semiannual:1/6, yearly:1/12, once:0}[b.repeat] ?? 1;
   return amt*f;
 }
-function paidThisMonth(){
+function monthPayments(){
   const pre = todayStr().slice(0,7);
-  return Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre)).reduce((s,p)=>s+p.amount,0);
+  return Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre));
+}
+// Money that actually left your account this month. A payment logged against a
+// pass-through bill is excluded: the card's own statement payment carries it.
+function paidThisMonth(){
+  return monthPayments().filter(p=>!isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
+}
+function chargedThisMonth(){
+  return monthPayments().filter(p=>isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
 }
 function dueThisMonth(){ // bills whose nextDue falls in current month
   const pre = todayStr().slice(0,7);
@@ -578,6 +639,11 @@ function renderFilter(){
   let html = '<option value="all">All Active Bills</option><option value="due7">Due This Week</option><option value="autopay">Autopay</option>';
   const cats = allCats();
   for(const k in cats) html += `<option value="${k}">${esc(cats[k].label)}</option>`;
+  // One entry per bill that funds others — the fast answer to "my card was
+  // reissued, which bills do I have to go update?"
+  const funders = activeBills().filter(b=>fundsAnything(b.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(funders.length) html += '<optgroup label="Charged to">'
+    + funders.map(b=>`<option value="fund:${b.id}">${esc(b.name)}</option>`).join("") + '</optgroup>';
   html += '<option value="archived">Archived</option>';
   sel.innerHTML = html; sel.value = filterCat;
   sel.onchange = ()=>{ filterCat = sel.value; renderList(); };
@@ -587,6 +653,7 @@ function renderList(){
   let bills = filterCat==="archived" ? archivedBills() : activeBills();
   if(filterCat==="due7") bills = bills.filter(b=>b.nextDue && daysUntil(b.nextDue)<=7);
   else if(filterCat==="autopay") bills = bills.filter(b=>b.autopay);
+  else if(filterCat.startsWith("fund:")) bills = bills.filter(b=>b.fundedBy===filterCat.slice(5));
   else if(filterCat!=="all" && filterCat!=="archived") bills = bills.filter(b=>b.category===filterCat);
   if(searchQ) bills = bills.filter(b=>b.name.toLowerCase().includes(searchQ));
   bills.sort((a,b)=> (a.nextDue||"9999") < (b.nextDue||"9999") ? -1 : 1);
@@ -600,11 +667,12 @@ function renderList(){
     const group = filterCat==="archived" ? "ARCHIVED" : (n<0 ? "OVERDUE" : (n<=7 ? "DUE SOON" : "DUE LATER"));
     if(group !== lastGroup){ html += `<div class="group-head ${group==="ARCHIVED"?"g-archived":(n<0?"g-overdue":(n<=7?"g-soon":""))}">${group}</div>`; lastGroup = group; }
     const lp = lastPayment(b);
+    const fb = funderOf(b);
     html += `<div class="bill-row${selIds&&selIds.has(b.id)?" selected":""}" onclick="openDetail('${b.id}')">
       <div class="bill-name">
         <div class="bill-icon" style="background:${cat.color}">${svgIcon(cat.icon,19,"#3a3a3c")}</div>
         <div style="min-width:0">
-          <div class="bill-title">${esc(b.name)}${b.autopay?'<span class="autopay-badge">AUTO</span>':''}</div>
+          <div class="bill-title">${esc(b.name)}${b.autopay?'<span class="autopay-badge">AUTO</span>':''}${fb?`<span class="funded-chip">↳ ${esc(fb.name)}</span>`:''}</div>
           <div class="bill-sub d-only">Repeats: ${REPEAT_LABEL[b.repeat]||b.repeat}</div>
           <div class="bill-sub m-only ${cls}">${b.nextDue?dueLabel(b.nextDue):"No due date"}</div>
         </div>
@@ -646,22 +714,27 @@ function renderSide(){
   const dtm = dueThisMonth();
   const pre = tod.slice(0,7);
   const paidCount = new Set(Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre)).map(p=>p.billId)).size;
-  const soonAmt = soon.reduce((s,b)=>s+(b.amountDue||billAverage(b)),0);
-  const dtmAmt = dtm.reduce((s,b)=>s+(b.amountDue||billAverage(b)),0);
+  // Counts stay whole so they match the bill list; only the dollar figures are
+  // split, with what lands on a tracked card shown separately rather than hidden.
+  const soonSplit = splitCash(soon), dtmSplit = splitCash(dtm);
+  const chargedNote = amt => amt ? `<div class="stat-sub charged">+ ${fmtMoney(amt)} charged to cards</div>` : "";
   document.getElementById("sideStats").innerHTML = `
-    <div class="stat-row"><div class="stat-big">${soon.length}</div><div><div class="stat-label">BILLS DUE SOON</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(soonAmt)}</b></div></div></div>
-    <div class="stat-row"><div class="stat-big">${dtm.length}</div><div><div class="stat-label">BILLS DUE THIS MONTH</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(dtmAmt)}</b></div></div></div>
-    <div class="stat-row"><div class="stat-big">${paidCount}</div><div><div class="stat-label">BILLS PAID THIS MONTH</div><div class="stat-sub">Amount Paid <b>${fmtMoney(paidThisMonth())}</b></div></div></div>`;
+    <div class="stat-row"><div class="stat-big">${soon.length}</div><div><div class="stat-label">BILLS DUE SOON</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(soonSplit.cashAmt)}</b></div>${chargedNote(soonSplit.chargedAmt)}</div></div>
+    <div class="stat-row"><div class="stat-big">${dtm.length}</div><div><div class="stat-label">BILLS DUE THIS MONTH</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(dtmSplit.cashAmt)}</b></div>${chargedNote(dtmSplit.chargedAmt)}</div></div>
+    <div class="stat-row"><div class="stat-big">${paidCount}</div><div><div class="stat-label">BILLS PAID THIS MONTH</div><div class="stat-sub">Amount Paid <b>${fmtMoney(paidThisMonth())}</b></div>${chargedNote(chargedThisMonth())}</div></div>`;
 
   const income = activeIncomes().reduce((s,i)=>s+i.amount,0);
   const paid = paidThisMonth();
-  const still = dtmAmt;
+  const still = dtmSplit.cashAmt;
+  const charged = chargedThisMonth() + dtmSplit.chargedAmt;
   const bal = income - paid - still;
   document.getElementById("balRows").innerHTML = `
     <div class="bal-row"><span>EXPECTED TOTAL INCOME</span><b>${fmtMoney(income)}</b></div>
     <div class="bal-row"><span>PAID THIS MONTH</span><b>${fmtMoney(paid)}</b></div>
     <div class="bal-row"><span>STILL DUE THIS MONTH</span><b>${fmtMoney(still)}</b></div>
-    <div class="bal-row total"><span>BALANCE</span><b class="${bal<0?"neg":"pos"}">${fmtMoney(bal)}</b></div>`;
+    <div class="bal-row total"><span>BALANCE</span><b class="${bal<0?"neg":"pos"}">${fmtMoney(bal)}</b></div>
+    ${charged?`<div class="bal-row charged"><span>CHARGED TO CARDS</span><b>${fmtMoney(charged)}</b></div>
+    <div class="bal-note">Already covered by the card bills above — not counted again.</div>`:""}`;
 }
 
 /* ================= Detail view ================= */
@@ -677,6 +750,7 @@ function openDetail(id){
   const total = ps.reduce((s,p)=>s+p.amount,0);
   const hi = ps.length?ps.reduce((a,p)=>p.amount>a.amount?p:a):null;
   const lo = ps.length?ps.reduce((a,p)=>p.amount<a.amount?p:a):null;
+  const funder = funderOf(b), kids = fundedChildren(id);
 
   document.getElementById("dLeft").innerHTML = `
     <div class="due-big">${b.nextDue?dueLabel(b.nextDue):"No due date"}</div>
@@ -693,7 +767,13 @@ function openDetail(id){
     <h4>CATEGORY</h4><div class="val">${svgIcon(getCat(b.category).icon,14)} ${esc(getCat(b.category).label)}</div>
     <h4>AMOUNT DUE</h4><div class="val">${b.amountDue?fmtMoney(b.amountDue):"Not set (varies)"}</div>
     <h4>AUTOPAY</h4><div class="val">${b.autopay?"Yes":"No"}</div>
-    ${b.notes?`<h4>NOTES</h4><div class="val">${esc(b.notes)}</div>`:""}`;
+    ${funder?`<h4>FUNDED BY</h4><div class="val"><a href="#" onclick="openDetail('${funder.id}');return false" style="color:var(--green-dark)">${esc(funder.name)}</a></div>
+      <div class="funded-note">Charged to this bill, so it isn't counted again in Monthly Balance.</div>`:""}
+    ${b.notes?`<h4>NOTES</h4><div class="val">${esc(b.notes)}</div>`:""}
+    ${kids.length?`<h4>CHARGED TO THIS BILL</h4>
+      <div class="funded-list">${kids.map(k=>`<div class="funded-item" onclick="openDetail('${k.id}')"><span>${svgIcon(getCat(k.category).icon,13)} ${esc(k.name)}</span><b>${fmtMoney(expectedAmount(k))}</b></div>`).join("")}
+        <div class="funded-item total"><span>${kids.length} recurring charge${kids.length>1?"s":""}</span><b>${fmtMoney(kids.reduce((s,k)=>s+expectedAmount(k),0))}</b></div></div>
+      <div class="funded-note">Recurring charges you track in Billy. Your actual statement may also include one-off spending.</div>`:""}`;
 
   document.getElementById("dStats").innerHTML = `
     <div class="stat-block"><div class="k">HIGHEST PAYMENT</div><div class="v">${hi?fmtMoney(hi.amount):"—"}</div><div class="s">${hi?fmtDateLong(hi.date):""}</div></div>
@@ -758,10 +838,24 @@ function buildCatSelect(selected){
     }
   };
 }
+// Funding picker: every active bill except this one and anything that already
+// draws on it, so a funding chain can never close into a loop.
+function buildFunderSelect(id, selected){
+  const sel = document.getElementById("bfFunder");
+  const blocked = id ? descendantsOf(id) : new Set();
+  const choices = activeBills()
+    .filter(b=>b.id!==id && !blocked.has(b.id))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="">Bank account / direct — counts in balance</option>'
+    + choices.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("");
+  // A funder that is archived or deleted is no longer offered; fall back to direct.
+  sel.value = choices.some(b=>b.id===selected) ? selected : "";
+}
 function openBillForm(id){
   const b = id ? db.bills[id] : null;
   document.getElementById("billFormTitle").textContent = b?"Edit Bill":"New Bill";
   buildCatSelect(b?b.category:"utilities");
+  buildFunderSelect(id||"", b?b.fundedBy||"":"");
   document.getElementById("bfName").value = b?b.name:"";
   document.getElementById("bfAmount").value = b&&b.amountDue?b.amountDue:"";
   document.getElementById("bfRepeat").value = b?b.repeat:"monthly";
@@ -783,6 +877,7 @@ function saveBillForm(){
   b.repeat = document.getElementById("bfRepeat").value;
   b.nextDue = document.getElementById("bfDue").value || null;
   b.autopay = document.getElementById("bfAutopay").checked;
+  b.fundedBy = document.getElementById("bfFunder").value || "";
   let url = document.getElementById("bfUrl").value.trim();
   if(url && !/^https?:\/\//i.test(url)) url = "https://"+url;
   b.url = url;
@@ -793,12 +888,20 @@ function saveBillForm(){
 function editCurrentBill(){ openBillForm(currentBillId); }
 function toggleArchive(){
   const b = db.bills[currentBillId];
+  // Retiring a funder puts its charges back on your balance — they have to come
+  // from somewhere, and the card's statement is no longer there to carry them.
+  const kids = b.archived ? [] : fundedChildren(b.id);
   b.archived = !b.archived; touch(b);
   persist(); refreshDetail();
-  toast(b.archived ? "Archived — find it under the Archived filter" : "Unarchived");
+  toast(b.archived
+    ? (kids.length ? "Archived — "+kids.length+" bill"+(kids.length>1?"s":"")+" charged here now count in your balance"
+                   : "Archived — find it under the Archived filter")
+    : "Unarchived");
 }
 function deleteCurrentBill(){
-  if(!confirm("Delete this bill and keep its payment history hidden?")) return;
+  const kids = fundedChildren(currentBillId);
+  const warn = kids.length ? "\n\n"+kids.length+" bill"+(kids.length>1?"s are":" is")+" charged to this one and will start counting in your Monthly Balance again." : "";
+  if(!confirm("Delete this bill and keep its payment history hidden?"+warn)) return;
   const b = db.bills[currentBillId]; b.deleted = true; touch(b);
   persist(); closeDetail();
 }
@@ -1104,8 +1207,9 @@ function importJSON(input){
   input.value="";
 }
 function exportCSV(){
-  let csv = "Bill,Category,Repeat,Amount Due,Next Due,Autopay,URL\n";
-  activeBills().forEach(b=>{ csv += [q(b.name),q(getCat(b.category).label),b.repeat,b.amountDue||"",b.nextDue||"",b.autopay?"yes":"no",q(b.url||"")].join(",")+"\n"; });
+  let csv = "Bill,Category,Repeat,Amount Due,Next Due,Autopay,Funded By,URL\n";
+  activeBills().forEach(b=>{ const f=funderOf(b);
+    csv += [q(b.name),q(getCat(b.category).label),b.repeat,b.amountDue||"",b.nextDue||"",b.autopay?"yes":"no",q(f?f.name:""),q(b.url||"")].join(",")+"\n"; });
   csv += "\nBill,Payment Date,Amount,Note\n";
   Object.values(db.payments).filter(p=>!p.deleted).sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
     csv += [q(db.bills[p.billId]?.name||"?"),p.date,p.amount,q(p.note||"")].join(",")+"\n";
@@ -1168,8 +1272,11 @@ function updateSyncStatus(){
   if(selectedDate){
     const ids = dueDateMap()[selectedDate]||[];
     if(ids.length){
-      const amt = ids.reduce((s,id)=>s+(db.bills[id].amountDue||0),0);
-      setSyncStatus(ids.length+(ids.length>1?" bills":" bill")+" selected ("+fmtDate(selectedDate)+"). Estimated amount due: "+fmtMoney(amt));
+      const bills = ids.map(id=>db.bills[id]).filter(Boolean);
+      const cash = bills.filter(b=>!isPassThrough(b)).reduce((s,b)=>s+(b.amountDue||0),0);
+      const charged = bills.filter(isPassThrough).reduce((s,b)=>s+(b.amountDue||0),0);
+      setSyncStatus(ids.length+(ids.length>1?" bills":" bill")+" selected ("+fmtDate(selectedDate)+"). Estimated amount due: "+fmtMoney(cash)
+        + (charged ? " (+"+fmtMoney(charged)+" charged to cards)" : ""));
       return;
     }
   }

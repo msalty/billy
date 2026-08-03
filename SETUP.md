@@ -49,12 +49,14 @@ That's it. Each device keeps a full local copy (works offline); changes sync to 
 - Every bill, payment, and income entry carries an `updatedAt` timestamp.
 - Sync sends your local data to the script, which merges it with the Sheet (newest record wins) and returns the merged result.
 - Deletions are tombstones (a `deleted` flag), so a delete on one device propagates instead of resurrecting.
+- New columns are appended to the right of each tab, never inserted, so existing sheets keep working after an update — don't reorder the header row.
 - The Sheet has readable tabs (**Bills / Payments / Incomes / Categories**) — you can browse, chart, or even hand-edit it. If you hand-edit, set the row's `updatedAt` to a bigger number (e.g. current ms timestamp from `=ROUND((NOW()-DATE(1970,1,1))*86400000)`) so devices accept the change.
 
 ## Using the app
 
-- **＋ New** — add a bill: name, category, amount (leave blank for variable bills like utilities), repeat interval, next due date, autopay flag, payment website URL, notes.
+- **＋ New** — add a bill: name, category, amount (leave blank for variable bills like utilities), repeat interval, next due date, autopay flag, funding source, payment website URL, notes.
 - **Archive** — retired a card or closed an account? Archive the bill from its detail view instead of deleting: its full payment history stays browsable under the **Archived** filter, but it disappears from the list, calendar, balance, and badge. Unarchive any time.
+- **Funded by** — if a bill gets charged to another bill you track (Netflix on your Discover card), pick that card in the bill form's **Funded by** dropdown. See [Funding sources](#funding-sources) below.
 - **Custom categories** — pick "＋ New category…" in the bill form's category dropdown: name it, choose an SVG icon and a color. Custom categories sync to the Sheet (Categories tab) like everything else.
 - **Pay Online** — if a bill has a URL, its detail view shows a **Pay Online** button that opens the biller's site in a new tab.
 - Tap a bill for its detail view: log payments, **Mark Paid** (one tap, uses amount due or the running average), **Skip** a cycle, see highest/lowest/average payment, this year vs last year, a 13-month history chart, and the full payment log.
@@ -85,6 +87,27 @@ The sync script can email you when bills come due — it runs on Google's server
 2. One time, in the Sheet's **Extensions → Apps Script** editor (with the latest Code.gs): select **setupReminders** in the function dropdown, click **Run**, and authorize. This creates a daily ~8am trigger.
 
 Emails go to your own Google account address. To stop them, set days to 0 in the app (or delete the trigger under the clock icon in the Apps Script editor).
+
+## Funding sources
+
+Bills that get charged to a credit card you also track were being counted twice in **Monthly Balance** — once as the charge, once inside the card's statement payment. Setting **Funded by** on a bill fixes that.
+
+Pick the bill it gets charged to (e.g. Netflix → Discover Card) and one rule applies everywhere money is totalled:
+
+> A bill is left out of the cash-flow math **if and only if** its funding source is itself a bill you track.
+
+- **Netflix → Discover Card** — the Discover statement is already in your balance, so Netflix isn't counted again.
+- **Mortgage → Bank account / direct** (the default) — money leaves your account, so it counts.
+- **Something charged to a card you *don't* track** — leave it direct. It still counts, because it's then the only record of that money in the app.
+
+Nothing is hidden. The sidebar counts still include every bill so they match the list, and the dollar figures show cash out of your account with a muted **“+ $X charged to cards”** line beside them. Monthly Balance gets a matching **CHARGED TO CARDS** footnote.
+
+Two things come free with it:
+
+- A card's detail view lists **Charged to this bill** — every recurring charge that posts to it, with a total. (That's what Billy knows about; your real statement may also include one-off spending.)
+- The filter dropdown gains a **Charged to** group. When a card is reissued, pick it and you have the exact list of billers to go update.
+
+Notes: every existing bill defaults to direct, so the feature is invisible until you use it. The picker won't offer a bill that already draws on the one you're editing, so funding can't loop. Archiving or deleting a funder puts its charges back into your balance — they have to come from somewhere once the card's statement is gone — and the app tells you how many bills that affects before you confirm.
 
 ## Spending summary
 

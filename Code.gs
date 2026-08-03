@@ -18,7 +18,9 @@
 const TOKEN = "change-me-to-something-secret";
 
 const TABLES = {
-  bills:      ["id","name","category","repeat","amountDue","nextDue","autopay","archived","url","notes","deleted","updatedAt"],
+  // New columns must be appended, never inserted: readTable maps this list
+  // positionally onto existing sheet rows, so inserting would shift old data.
+  bills:      ["id","name","category","repeat","amountDue","nextDue","autopay","archived","url","notes","deleted","updatedAt","fundedBy"],
   payments:   ["id","billId","date","amount","note","deleted","updatedAt"],
   incomes:    ["id","name","amount","deleted","updatedAt"],
   categories: ["id","label","icon","color","deleted","updatedAt"]
@@ -80,6 +82,9 @@ function readTable(ss, table) {
     cols.forEach(function (c, i) { rec[c] = values[r][i]; });
     if (!rec.id) continue;
     rec.id = String(rec.id);
+    // A funding source is another bill's id — keep it a string even if the
+    // sheet (or a hand edit) hands it back as a number.
+    if (rec.fundedBy !== undefined) rec.fundedBy = rec.fundedBy ? String(rec.fundedBy) : "";
     if (rec.amountDue !== undefined) rec.amountDue = Number(rec.amountDue) || 0;
     if (rec.amount !== undefined) rec.amount = Number(rec.amount) || 0;
     rec.updatedAt = Number(rec.updatedAt) || 0;
