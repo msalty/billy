@@ -73,7 +73,7 @@ That's it. Each device keeps a full local copy (works offline); changes sync to 
 - Overdue highlighting (red) and due-soon (amber) status bars
 - Autopay badge and autopay-only filter
 - Variable-amount bills use the running average for estimates
-- Month-end aware recurrence (Jan 31 → Feb 28 → Mar 31)
+- Month-end aware recurrence (Jan 31 → Feb 28 → Mar 31) — see [Month-end due dates](#month-end-due-dates)
 - Offline queue with auto-sync on reconnect and a sync status line
 - One-tap **Mark Paid**, back-dated payments, skip cycle
 - CSV export and JSON backup/restore (restore merges rather than overwrites)
@@ -115,6 +115,20 @@ Notes:
 - The feed lists every occurrence explicitly rather than using a recurrence rule, so the dates match Billy exactly (a repeating rule can't reproduce its month-end behavior).
 - Archived and deleted bills are left out.
 - **The link contains your token.** Anyone who has it can read your bill names and amounts, and it may be stored on your calendar provider's servers. Treat it like a password; to revoke it, change `TOKEN` in `Code.gs` (which also means re-entering the token on each device).
+
+## Month-end due dates
+
+A bill due on the 29th, 30th, or 31st keeps that day even when a month is too short for it. Each bill stores an **anchor day** — the day of the month it's meant to land on — and every advance is measured from that anchor, not from wherever the last occurrence fell:
+
+```
+Jan 31 → Feb 28 → Mar 31 → Apr 30 → May 31
+```
+
+February clamps to its last day, then March returns to the 31st. The same applies to quarterly, semi-annual, and yearly bills, including a yearly bill on Feb 29, which clamps to the 28th in ordinary years and takes the 29th again each leap year.
+
+The anchor is set from the due date you pick in the bill form, and it's only re-set when you deliberately change that date — renaming a bill or editing its amount won't disturb it. A bill's detail view spells the behavior out whenever its anchor is past the 28th.
+
+> **Upgrading:** earlier versions re-derived the day from the previous occurrence, so once February pulled a bill back to the 28th it stayed there — a bill due the 31st quietly walked backwards for good. Existing bills are given an anchor matching the day their next due date currently sits on. That stops the drift immediately, but it can't recover a day already lost: if one of your bills has crept backwards, set its next due date to the right day once and it will hold from then on.
 
 ## Funding sources
 

@@ -20,7 +20,7 @@ const TOKEN = "change-me-to-something-secret";
 const TABLES = {
   // New columns must be appended, never inserted: readTable maps this list
   // positionally onto existing sheet rows, so inserting would shift old data.
-  bills:      ["id","name","category","repeat","amountDue","nextDue","autopay","archived","url","notes","deleted","updatedAt","fundedBy"],
+  bills:      ["id","name","category","repeat","amountDue","nextDue","autopay","archived","url","notes","deleted","updatedAt","fundedBy","anchorDay"],
   payments:   ["id","billId","date","amount","note","deleted","updatedAt"],
   incomes:    ["id","name","amount","deleted","updatedAt"],
   categories: ["id","label","icon","color","deleted","updatedAt"]
@@ -87,6 +87,7 @@ function readTable(ss, table) {
     // A funding source is another bill's id — keep it a string even if the
     // sheet (or a hand edit) hands it back as a number.
     if (rec.fundedBy !== undefined) rec.fundedBy = rec.fundedBy ? String(rec.fundedBy) : "";
+    if (rec.anchorDay !== undefined) rec.anchorDay = Number(rec.anchorDay) || 0;
     if (rec.amountDue !== undefined) rec.amountDue = Number(rec.amountDue) || 0;
     if (rec.amount !== undefined) rec.amount = Number(rec.amount) || 0;
     rec.updatedAt = Number(rec.updatedAt) || 0;
@@ -197,6 +198,11 @@ function buildIcs(params) {
     if (b.url) desc.push("Pay: " + b.url);
     if (b.notes) desc.push(String(b.notes));
 
+    // Bills that predate anchorDay, or whose anchor has not synced up from a
+    // device yet, fall back to the day nextDue sits on — the same value the
+    // app's migration backfills, so both sides project identical dates.
+    const first = parseIcsDate(b.nextDue);
+    const anchor = clampDayIcs(b.anchorDay) || (first ? first.getDate() : 0);
     let d = String(b.nextDue);
     for (let i = 0; i < 500 && d; i++) {
       const dt = parseIcsDate(d);
@@ -220,7 +226,7 @@ function buildIcs(params) {
       }
       lines.push("END:VEVENT");
       if (b.repeat === "once") break;
-      d = addIntervalIcs(d, b.repeat);
+      d = addIntervalIcs(d, b.repeat, anchor);
     }
   }
 
@@ -229,24 +235,33 @@ function buildIcs(params) {
 }
 
 // Ported from the app so the calendar and the app agree on every date,
-// including the Jan 31 -> Feb 28 -> Mar 31 month-end walk.
-function addIntervalIcs(dateStr, repeat) {
+// including the Jan 31 -> Feb 28 -> Mar 31 month-end walk. The anchor is
+// computed once per bill and held fixed across the whole projection; deriving
+// it from each occurrence would let February drag the date back permanently.
+function addIntervalIcs(dateStr, repeat, anchorDay) {
   const d = parseIcsDate(dateStr);
   if (!d) return null;
-  const day = d.getDate();
+  // Not clampInt: an absent anchor arrives as 0 or "", and clamping would
+  // silently pin every such bill to the 1st instead of falling back.
+  const want = clampDayIcs(anchorDay) || d.getDate();
   switch (repeat) {
-    case "weekly": d.setDate(d.getDate() + 7); break;
-    case "biweekly": d.setDate(d.getDate() + 14); break;
-    case "monthly": d.setMonth(d.getMonth() + 1); fixDayIcs(d, day); break;
-    case "quarterly": d.setMonth(d.getMonth() + 3); fixDayIcs(d, day); break;
-    case "semiannual": d.setMonth(d.getMonth() + 6); fixDayIcs(d, day); break;
-    case "yearly": d.setFullYear(d.getFullYear() + 1); fixDayIcs(d, day); break;
+    case "weekly": d.setDate(d.getDate() + 7); return icsDstr(d);
+    case "biweekly": d.setDate(d.getDate() + 14); return icsDstr(d);
+    case "monthly": return monthStepIcs(d, 1, want);
+    case "quarterly": return monthStepIcs(d, 3, want);
+    case "semiannual": return monthStepIcs(d, 6, want);
+    case "yearly": return monthStepIcs(d, 12, want);
     default: return null; // once
   }
-  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 }
-function fixDayIcs(d, wantDay) {
-  if (d.getDate() !== wantDay && d.getDate() < 5) d.setDate(0);
+function monthStepIcs(d, months, wantDay) {
+  const m = d.getMonth() + months;
+  const y = d.getFullYear() + Math.floor(m / 12), mo = ((m % 12) + 12) % 12;
+  const dim = new Date(y, mo + 1, 0).getDate();
+  return icsDstr(new Date(y, mo, Math.min(wantDay, dim)));
+}
+function icsDstr(d) {
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 }
 function parseIcsDate(s) {
   const p = String(s).split("-").map(Number);
@@ -285,6 +300,10 @@ function fold(line) {
   }
   out.push(cur);
   return out.join("\r\n");
+}
+function clampDayIcs(n) {
+  n = Math.floor(Number(n));
+  return (n >= 1 && n <= 31) ? n : 0;
 }
 function clampInt(v, lo, hi, dflt) {
   const n = Math.floor(Number(v));

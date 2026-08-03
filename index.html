@@ -443,7 +443,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.3 (2026-08-03)";
+const APP_VER = "1.4 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -518,22 +518,48 @@ function todayStr(){ const d=new Date(); return dstr(d); }
 function dstr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function parseD(s){ const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); }
 function daysUntil(s){ return Math.round((parseD(s) - parseD(todayStr()))/86400000); }
-function addInterval(dateStr, repeat){
+/* Month-stepping repeats advance from the bill's anchorDay — the day of the
+ * month it is meant to land on — never from where the previous occurrence
+ * happened to fall. A bill due the 31st goes Jan 31 -> Feb 28 -> Mar 31:
+ * February clamps, March recovers.
+ *
+ * Deriving the day from the previous occurrence (as this used to) makes the
+ * clamp permanent: once February pulled the date back to the 28th, every later
+ * month took 28 as the intended day and the bill silently walked backwards for
+ * good. Same for a bill on the 29th or 30th, after any February.
+ */
+function addInterval(dateStr, repeat, anchorDay){
   const d = parseD(dateStr);
-  const day = d.getDate();
+  const want = clampDay(anchorDay) || d.getDate();
   switch(repeat){
-    case "weekly": d.setDate(d.getDate()+7); break;
-    case "biweekly": d.setDate(d.getDate()+14); break;
-    case "monthly": d.setMonth(d.getMonth()+1); fixDay(d,day); break;
-    case "quarterly": d.setMonth(d.getMonth()+3); fixDay(d,day); break;
-    case "semiannual": d.setMonth(d.getMonth()+6); fixDay(d,day); break;
-    case "yearly": d.setFullYear(d.getFullYear()+1); fixDay(d,day); break;
+    case "weekly": d.setDate(d.getDate()+7); return dstr(d);
+    case "biweekly": d.setDate(d.getDate()+14); return dstr(d);
+    case "monthly": return monthStep(d, 1, want);
+    case "quarterly": return monthStep(d, 3, want);
+    case "semiannual": return monthStep(d, 6, want);
+    case "yearly": return monthStep(d, 12, want);
     default: return null; // once
   }
-  return dstr(d);
 }
-function fixDay(d, wantDay){ // handle Jan 31 -> Feb 28 overflow
-  if(d.getDate() !== wantDay && d.getDate() < 5){ d.setDate(0); }
+// Add whole months, then clamp to the target month's length (Feb 31 -> Feb 28).
+// Building the date from parts avoids setMonth's overflow into the next month.
+function monthStep(d, months, wantDay){
+  const m = d.getMonth() + months;
+  const y = d.getFullYear() + Math.floor(m/12), mo = ((m%12)+12)%12;
+  const dim = new Date(y, mo+1, 0).getDate();
+  return dstr(new Date(y, mo, Math.min(wantDay, dim)));
+}
+const MONTH_REPEATS = ["monthly","quarterly","semiannual","yearly"];
+function clampDay(n){ n = Math.floor(Number(n)); return (n>=1 && n<=31) ? n : 0; }
+function anchorFor(dateStr){ return dateStr ? parseD(dateStr).getDate() : 0; }
+// Bills predating anchorDay fall back to the day their next due date sits on,
+// which is the same value the boot migration backfills.
+function billAnchor(b){ return clampDay(b.anchorDay) || anchorFor(b.nextDue); }
+// Pin the anchor before the date moves, so it also reaches the Sheet on sync.
+function advanceDue(b){
+  b.anchorDay = billAnchor(b);
+  b.nextDue = addInterval(b.nextDue, b.repeat, b.anchorDay);
+  return b.nextDue;
 }
 function fmtMoney(n){ return (n<0?"-$":"$")+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(s){ if(!s) return "—"; return parseD(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
@@ -626,7 +652,8 @@ function dueDateMap(){
   const map = {};
   activeBills().forEach(b=>{ if(!b.nextDue) return;
     let d = b.nextDue;
-    for(let i=0;i<12 && d;i++){ (map[d]=map[d]||[]).push(b.id); d = addInterval(d,b.repeat); }
+    const anchor = billAnchor(b);
+    for(let i=0;i<12 && d;i++){ (map[d]=map[d]||[]).push(b.id); d = addInterval(d,b.repeat,anchor); }
   });
   return map;
 }
@@ -771,6 +798,8 @@ function openDetail(id){
     </div>
     ${b.archived?'<div style="background:#8e8e93;color:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:14px">ARCHIVED — hidden from lists, calendar, balance, and badge</div>':""}
     <h4>REPEAT INTERVAL</h4><div class="val">${REPEAT_LABEL[b.repeat]||b.repeat}</div>
+    ${MONTH_REPEATS.indexOf(b.repeat)>=0 && billAnchor(b)>28
+      ? `<div class="funded-note">Due on day ${billAnchor(b)}. Shorter months fall back to their last day, then it returns to the ${billAnchor(b)}th.</div>` : ""}
     <h4>CATEGORY</h4><div class="val">${svgIcon(getCat(b.category).icon,14)} ${esc(getCat(b.category).label)}</div>
     <h4>AMOUNT DUE</h4><div class="val">${b.amountDue?fmtMoney(b.amountDue):"Not set (varies)"}</div>
     <h4>AUTOPAY</h4><div class="val">${b.autopay?"Yes":"No"}</div>
@@ -882,7 +911,12 @@ function saveBillForm(){
   b.category = document.getElementById("bfCat").value;
   b.amountDue = parseFloat(document.getElementById("bfAmount").value)||0;
   b.repeat = document.getElementById("bfRepeat").value;
+  const prevDue = b.nextDue;
   b.nextDue = document.getElementById("bfDue").value || null;
+  // Re-anchor only when the date was deliberately changed. Editing anything
+  // else must not re-anchor: the form shows the *current* due date, so a bill
+  // clamped to Feb 28 would otherwise lose its 31st just by renaming it.
+  if(b.nextDue !== prevDue || !clampDay(b.anchorDay)) b.anchorDay = anchorFor(b.nextDue);
   b.autopay = document.getElementById("bfAutopay").checked;
   b.fundedBy = document.getElementById("bfFunder").value || "";
   let url = document.getElementById("bfUrl").value.trim();
@@ -961,7 +995,7 @@ function savePayment(){
   const p = touch({id:uid(), billId:b.id, date:document.getElementById("pfDate").value||todayStr(), amount, note:document.getElementById("pfNote").value.trim()});
   db.payments[p.id] = p;
   if(document.getElementById("pfAdvance").checked && b.nextDue){
-    b.nextDue = addInterval(b.nextDue, b.repeat); touch(b);
+    advanceDue(b); touch(b);
   }
   persist(); closeModal("payModal"); refreshDetail(); toast("Payment logged");
 }
@@ -970,13 +1004,13 @@ function quickPay(){
   const amt = b.amountDue || billAverage(b);
   const p = touch({id:uid(), billId:b.id, date:todayStr(), amount:Math.round(amt*100)/100, note:b.autopay?"Autopay":""});
   db.payments[p.id] = p;
-  if(b.nextDue){ b.nextDue = addInterval(b.nextDue,b.repeat); touch(b); }
+  if(b.nextDue){ advanceDue(b); touch(b); }
   persist(); refreshDetail(); toast("Marked paid "+fmtMoney(p.amount));
 }
 function skipBill(){
   const b = db.bills[currentBillId];
   if(!b.nextDue){ toast("No due date set"); return; }
-  b.nextDue = addInterval(b.nextDue,b.repeat); touch(b);
+  advanceDue(b); touch(b);
   persist(); refreshDetail(); toast("Skipped to "+fmtDate(b.nextDue));
 }
 let editingIncomeId = null;
@@ -1431,6 +1465,20 @@ window.addEventListener("focus", ()=>{ updateBadge(); });
     s.reminderDaysUpdatedAt = Date.now();
     saveSettingsObj(s);
   }
+})();
+// migration: bills created before anchorDay repeat on whatever day their next
+// due date currently sits on. That is all we can know — a bill already dragged
+// from the 31st to the 28th by the old bug has lost the original day — but it
+// stops the drift from here. Deliberately does not touch() the record: the
+// value is derived identically on every device, so there is nothing to sync,
+// and bumping updatedAt on load could clobber a newer edit from another device.
+// The anchor reaches the Sheet the next time the bill is paid, skipped, or edited.
+(function(){
+  let changed = false;
+  Object.values(db.bills).forEach(b=>{
+    if(!clampDay(b.anchorDay) && b.nextDue){ b.anchorDay = anchorFor(b.nextDue); changed = true; }
+  });
+  if(changed) localStorage.setItem("billtracker.data", JSON.stringify(db));
 })();
 function renderAll(){ renderFilter(); renderList(); renderSide(); }
 renderAll(); updateSyncStatus(); updateBadge();
