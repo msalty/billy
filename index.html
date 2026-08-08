@@ -14,8 +14,33 @@
 <style>
 :root{
   --green:#57b957; --green-dark:#46a046; --red:#d9534f; --amber:#e8a33d;
-  --bg:#f5f5f7; --panel:#ffffff; --line:#e3e3e6; --txt:#1c1c1e; --txt2:#8e8e93;
+  --bg:#f5f5f7; --panel:#ffffff; --panel2:#fafafa; --input:#fafafa; --chrome:#ececee;
+  --line:#e3e3e6; --txt:#1c1c1e; --txt2:#8e8e93; --faint:#c7c7cc;
+  --sel:#dcdce0; --sel-hover:#d4d4d8; --green-tint:#e8f4e8;
+  --chip-bg:#ecebf3; --chip-txt:#5b5b70; --cat-icon:#3a3a3c;
+  --detail-side:#e9e9eb; --modal:#ffffff; --accent:#3b82c4;
+  --bar:#9a9aa0; --bar-cur:#7b7bea; --amt:#c0392b; --toast:#333333;
+  --overlay:rgba(0,0,0,.4); --shadow:rgba(0,0,0,.06); --shadow-bar:rgba(0,0,0,.16);
+  --glass:rgba(236,236,238,.88); --glass-btn:rgba(255,255,255,.85);
   --side-bg:#3a3a3c; --side-bg2:#2c2c2e; --side-txt:#f2f2f7; --side-txt2:#aeaeb2;
+  --side-line:#4a4a4e; --side-btn:#1c1c1e; --cal-today:#5e5e63; --cal-dim:#6a6a6e;
+  --mcal-today:#3478f6; --mcal-sel-bg:#1c1c1e; --mcal-sel-txt:#ffffff;
+}
+/* Dark palette. The theme is resolved to an explicit data-theme by the boot
+   script in <head>, including the "system" case, so this needs stating once
+   rather than duplicating under a prefers-color-scheme query. */
+:root[data-theme="dark"]{
+  --bg:#000000; --panel:#1c1c1e; --panel2:#2c2c2e; --input:#1c1c1e; --chrome:#1c1c1e;
+  --line:#38383a; --txt:#f2f2f7; --txt2:#98989d; --faint:#5a5a5e;
+  --sel:#3a3a3c; --sel-hover:#48484a; --green-tint:rgba(87,185,87,.22);
+  --chip-bg:#3a3a40; --chip-txt:#c9c9d4; --cat-icon:#f2f2f7;
+  --detail-side:#242426; --modal:#2c2c2e; --accent:#6ab0f3;
+  --bar:#6a6a70; --bar-cur:#8f8fee; --amt:#ff6f61; --toast:#48484a;
+  --overlay:rgba(0,0,0,.6); --shadow:rgba(0,0,0,.45); --shadow-bar:rgba(0,0,0,.55);
+  --glass:rgba(28,28,30,.9); --glass-btn:rgba(72,72,74,.85);
+  --side-bg:#2c2c2e; --side-bg2:#1c1c1e;
+  --side-line:#48484a; --side-btn:#48484a; --cal-today:#48484a; --cal-dim:#6a6a6e;
+  --mcal-today:#3478f6; --mcal-sel-bg:#f2f2f7; --mcal-sel-txt:#1c1c1e;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 /* overflow:hidden — the app scrolls internally (.main, .detail-body, modals),
@@ -27,49 +52,49 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 /* #ececee matches the top/bottom bars so the status-bar area, home-indicator
    area, and overscroll rubber-banding all blend with the app chrome */
-html{background:#ececee}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#ececee;color:var(--txt);font-size:15px;-webkit-font-smoothing:antialiased}
+html{background:var(--chrome)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--chrome);color:var(--txt);font-size:15px;-webkit-font-smoothing:antialiased}
 button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font:inherit}
 
 /* ===== Layout ===== */
 #app{display:flex;flex-direction:column;height:100%;height:100dvh} /* dvh tracks the real viewport through rotations */
-.topbar{display:flex;align-items:center;gap:10px;background:#ececee;border-bottom:1px solid var(--line);flex-wrap:wrap;
+.topbar{display:flex;align-items:center;gap:10px;background:var(--chrome);border-bottom:1px solid var(--line);flex-wrap:wrap;
   padding:calc(10px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) 10px calc(14px + env(safe-area-inset-left, 0px))}
-.topbar select{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.topbar select{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--txt)}
 .brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:17px;letter-spacing:.2px}
 .brand svg{border-radius:6px}
-.topbar .search{flex:1;min-width:140px;max-width:340px;margin-left:auto;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.topbar .search{flex:1;min-width:140px;max-width:340px;margin-left:auto;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--txt)}
 .main{flex:1;display:flex;min-height:0}
 .list-pane{flex:1;overflow-y:auto;background:var(--panel)}
 .side-pane{width:330px;flex-shrink:0;background:var(--side-bg);color:var(--side-txt);overflow-y:auto;padding:18px}
-.bottombar{display:flex;align-items:center;gap:8px;background:#ececee;border-top:1px solid var(--line);
+.bottombar{display:flex;align-items:center;gap:8px;background:var(--chrome);border-top:1px solid var(--line);
   padding:10px calc(14px + env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) calc(14px + env(safe-area-inset-left, 0px))}
 .bottombar .hint{color:var(--txt2);flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.btn{padding:8px 14px;border-radius:8px;background:#fff;border:1px solid var(--line);font-weight:500}
+.btn{padding:8px 14px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-weight:500}
 .btn.primary{background:var(--green);border-color:var(--green);color:#fff}
 .btn.danger{color:var(--red)}
 .btn:active{opacity:.7}
 a.btn{text-decoration:none;color:inherit}
 .btn svg,.cal-nav svg,.del svg{vertical-align:-3px}
 .icon-grid{display:flex;flex-wrap:wrap;gap:6px}
-.icon-grid button{width:38px;height:38px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fafafa}
-.icon-grid button.sel{border-color:var(--green);background:#e8f4e8;color:var(--green-dark)}
+.icon-grid button{width:38px;height:38px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--input)}
+.icon-grid button.sel{border-color:var(--green);background:var(--green-tint);color:var(--green-dark)}
 .cat-list-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px}
 .sum-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}
-.sum-track{height:5px;background:#ececee;border-radius:3px;margin:4px 0 0 34px}
+.sum-track{height:5px;background:var(--line);border-radius:3px;margin:4px 0 0 34px}
 .sum-bar{height:100%;background:var(--green);border-radius:3px}
 
 /* ===== Bill list ===== */
 .list-head{display:grid;grid-template-columns:minmax(150px,2.2fr) 1fr 1fr 1.2fr 1.4fr 8px;gap:8px;padding:8px 14px;font-size:12px;color:var(--txt2);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
 .bill-row{display:grid;grid-template-columns:minmax(150px,2.2fr) 1fr 1fr 1.2fr 1.4fr 8px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
-.bill-row:hover{background:#fafafa}
-.bill-row.selected{background:#dcdce0}
-.bill-row.selected:hover{background:#d4d4d8}
+.bill-row:hover{background:var(--panel2)}
+.bill-row.selected{background:var(--sel)}
+.bill-row.selected:hover{background:var(--sel-hover)}
 .m-only{display:none}
 .chev{align-self:center;flex-shrink:0}
 .m-right{text-align:right}
-.m-date{font-weight:700;color:#8e8e93;font-size:15px}
+.m-date{font-weight:700;color:var(--txt2);font-size:15px}
 .m-amt{font-size:13px;color:var(--txt2)}
 .bill-sub.overdue{color:var(--red)}
 .bill-sub.soon{color:var(--amber)}
@@ -78,7 +103,13 @@ a.btn{text-decoration:none;color:inherit}
 .group-head.g-soon{background:var(--amber)}
 .group-head.g-archived{background:#8e8e93}
 .bill-name{display:flex;align-items:center;gap:10px;min-width:0}
-.bill-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.bill-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;color:var(--cat-icon)}
+/* Category swatches are user-chosen pastels, which glare on a dark page. The
+   overlay composites over the inline background-color, dimming the chip without
+   touching the icon (a filter would dim that too). !important is required: it is
+   the one case where a stylesheet beats the element's inline background. */
+:root[data-theme="dark"] .bill-icon{background-image:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55))!important}
+.chev{color:var(--faint)}
 .bill-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bill-sub{font-size:12px;color:var(--txt2)}
 .cell-num{font-variant-numeric:tabular-nums}
@@ -89,8 +120,8 @@ a.btn{text-decoration:none;color:inherit}
 .status-bar{width:6px;height:38px;border-radius:3px;background:var(--green)}
 .status-bar.overdue{background:var(--red)}
 .status-bar.soon{background:var(--amber)}
-.autopay-badge{font-size:10px;background:#e8f4e8;color:var(--green-dark);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
-.funded-chip{font-size:10px;background:#ecebf3;color:#5b5b70;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.autopay-badge{font-size:10px;background:var(--green-tint);color:var(--green-dark);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+.funded-chip{font-size:10px;background:var(--chip-bg);color:var(--chip-txt);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap}
 .empty{padding:60px 20px;text-align:center;color:var(--txt2)}
 
 /* ===== Sidebar ===== */
@@ -101,12 +132,12 @@ a.btn{text-decoration:none;color:inherit}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;row-gap:6px}
 .cal-dow{font-size:12px;color:var(--side-txt2);font-weight:600}
 .cal-day{position:relative;padding:5px 0;font-size:14px;border-radius:7px;cursor:pointer}
-.cal-day.today{background:#5e5e63}
+.cal-day.today{background:var(--cal-today)}
 .cal-day.selected{background:#fff;color:#1c1c1e;font-weight:600}
-.cal-day.dim{color:#6a6a6e}
+.cal-day.dim{color:var(--cal-dim)}
 .cal-dot{position:absolute;left:50%;transform:translateX(-50%);bottom:-1px;width:5px;height:5px;border-radius:50%;background:var(--green)}
 .cal-dot.overdue{background:var(--red)}
-.stat-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #4a4a4e}
+.stat-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--side-line)}
 .stat-big{font-size:34px;font-weight:300;width:38px;text-align:center}
 .stat-label{font-size:13px;font-weight:600;letter-spacing:.3px}
 .stat-sub{font-size:13px;color:var(--side-txt2)}
@@ -115,14 +146,14 @@ a.btn{text-decoration:none;color:inherit}
 .balance h3{font-size:19px;font-weight:500;margin-bottom:10px}
 .bal-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--side-txt2)}
 .bal-row b{color:var(--side-txt);font-variant-numeric:tabular-nums}
-.bal-row.total{border-top:1px solid #4a4a4e;margin-top:6px;padding-top:10px;font-size:15px}
+.bal-row.total{border-top:1px solid var(--side-line);margin-top:6px;padding-top:10px;font-size:15px}
 .bal-row.total b.neg{color:#ff8a80}
 .bal-row.total b.pos{color:#8ee08e}
 .bal-row.charged{margin-top:8px;opacity:.6;font-size:12px}
 .bal-row.charged b{font-weight:600}
 .bal-note{font-size:11px;color:var(--side-txt2);opacity:.6;line-height:1.35;margin-top:-2px}
 .stat-sub.charged{opacity:.6;font-size:12px}
-.side-btn{display:block;margin:14px auto 0;background:#1c1c1e;color:var(--side-txt);padding:8px 16px;border-radius:16px;font-size:13px}
+.side-btn{display:block;margin:14px auto 0;background:var(--side-btn);color:var(--side-txt);padding:8px 16px;border-radius:16px;font-size:13px}
 
 /* ===== Detail view ===== */
 .detail{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:10}
@@ -131,7 +162,7 @@ a.btn{text-decoration:none;color:inherit}
   padding:calc(14px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 14px calc(16px + env(safe-area-inset-left, 0px))}
 .detail-head h2{font-size:22px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail-body{flex:1;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:stretch}
-.detail-left{width:280px;flex-shrink:0;background:#e9e9eb;padding:18px}
+.detail-left{width:280px;flex-shrink:0;background:var(--detail-side);padding:18px}
 .detail-left .due-big{font-size:24px;font-weight:600}
 .detail-left .due-date{font-size:15px;margin-bottom:14px}
 .detail-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
@@ -142,17 +173,17 @@ a.btn{text-decoration:none;color:inherit}
 .funded-list{border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:2px}
 .funded-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer}
 .funded-item:last-child{border-bottom:none}
-.funded-item:hover{background:#f5f5f7}
+.funded-item:hover{background:var(--panel2)}
 .funded-item span{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .funded-item b{font-variant-numeric:tabular-nums}
 .funded-amt{text-align:right;white-space:nowrap;flex:none}
 .funded-amt b{font-variant-numeric:tabular-nums}
 .funded-amt i{font-style:normal;font-weight:500;font-size:11px;color:var(--txt2);margin-left:1px}
 .funded-amt em{display:block;font-style:normal;font-size:10.5px;color:var(--txt2);margin-top:1px;font-weight:500}
-.funded-item.total{background:#fafafa;font-weight:600;cursor:default;color:var(--txt2)}
-.funded-item.total:hover{background:#fafafa}
+.funded-item.total{background:var(--panel2);font-weight:600;cursor:default;color:var(--txt2)}
+.funded-item.total:hover{background:var(--panel2)}
 .detail-right{flex:1;min-width:280px;padding:18px}
-.detail-right h3{color:#3b82c4;font-weight:400;font-size:21px;margin-bottom:12px}
+.detail-right h3{color:var(--accent);font-weight:400;font-size:21px;margin-bottom:12px}
 .stats-grid{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:26px}
 .stat-block{min-width:130px}
 .stat-block .k{font-size:11px;color:var(--txt2);letter-spacing:.4px;margin-bottom:2px}
@@ -162,8 +193,8 @@ a.btn{text-decoration:none;color:inherit}
 .chart-inner{display:flex;align-items:flex-end;gap:6px;width:max-content;min-width:100%}
 .cmonth{width:32px;flex-shrink:0;display:flex;flex-direction:column}
 .cbar-wrap{height:150px;display:flex;align-items:flex-end}
-.cbar{width:100%;background:#9a9aa0;border-radius:3px 3px 0 0;min-height:2px;position:relative}
-.cbar.cur{background:#7b7bea}
+.cbar{width:100%;background:var(--bar);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.cbar.cur{background:var(--bar-cur)}
 .cbar span{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--txt2);white-space:nowrap;display:none}
 .cbar:hover span,.cbar:active span{display:block}
 .clabel{font-size:10px;color:var(--txt2);text-align:center;margin-top:3px;white-space:nowrap}
@@ -171,21 +202,21 @@ a.btn{text-decoration:none;color:inherit}
 .pay-table{width:100%;border-collapse:collapse;font-size:14px}
 .pay-table td{padding:5px 8px;border-bottom:1px solid var(--line)}
 .pay-row{cursor:pointer}
-.pay-row:hover td{background:#fafafa}
+.pay-row:hover td{background:var(--panel2)}
 .income-row{cursor:pointer;border-radius:6px}
-.income-row:hover{background:#fafafa}
-.pay-table .amt{color:#c0392b;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.income-row:hover{background:var(--panel2)}
+.pay-table .amt{color:var(--amt);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .pay-table .note{color:var(--txt2)}
 .pay-table .del{color:var(--red);font-size:12px}
 
 /* ===== Modal ===== */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.modal-bg{position:fixed;inset:0;background:var(--overlay);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
 .modal-bg.open{display:flex}
-.modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
+.modal{background:var(--modal);border-radius:14px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
 .modal h3{margin-bottom:14px;font-size:18px}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:12px;color:var(--txt2);margin-bottom:4px}
-.field input,.field select,.field textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fafafa}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--input);color:var(--txt)}
 .field .row2{display:flex;gap:10px}
 .field .row2>*{flex:1}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
@@ -193,29 +224,29 @@ a.btn{text-decoration:none;color:inherit}
 .check input{width:auto}
 
 /* ===== Splash (inline, zero extra requests) ===== */
-#splash{position:fixed;inset:0;background:#ececee;display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity .25s}
+#splash{position:fixed;inset:0;background:var(--chrome);display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity .25s}
 #splash svg{border-radius:20px;animation:splashIn .35s ease-out}
 @keyframes splashIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* ===== Toast ===== */
-#toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30}
+#toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--toast);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30}
 #toast.show{opacity:1}
 
 /* ===== Mobile / narrow screens ===== */
 @media (max-width:800px){
   .main{flex-direction:column;overflow-y:auto;background:var(--bg)}
-  .list-pane{overflow:visible;flex:none;margin:0 12px 12px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .list-pane{overflow:visible;flex:none;margin:0 12px 12px;border-radius:14px;box-shadow:0 1px 3px var(--shadow)}
   .side-pane{display:contents}
-  #calCard{order:-1;margin:12px;background:#fff;border-radius:14px;padding:14px;color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  #calCard{order:-1;margin:12px;background:var(--panel);border-radius:14px;padding:14px;color:var(--txt);box-shadow:0 1px 3px var(--shadow)}
   #calCard .cal-nav{color:var(--txt2)}
-  #calCard .cal-day.today{background:#3478f6;color:#fff}
-  #calCard .cal-day.selected{background:#1c1c1e;color:#fff}
+  #calCard .cal-day.today{background:var(--mcal-today);color:#fff}
+  #calCard .cal-day.selected{background:var(--mcal-sel-bg);color:var(--mcal-sel-txt)}
   #sideDark{order:1;margin:0 12px 12px;background:var(--side-bg);border-radius:14px;padding:16px;color:var(--side-txt)}
   .list-head{display:none}
   .m-hide,.d-only{display:none}
   .m-only{display:block}
   .group-head{display:block}
-  .bill-row{grid-template-columns:minmax(0,1fr) auto 16px;background:#fff}
+  .bill-row{grid-template-columns:minmax(0,1fr) auto 16px;background:var(--panel)}
   .status-bar{display:none}
   .modal-bg{align-items:flex-end;padding:0}
   .modal{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh;padding-bottom:max(20px, env(safe-area-inset-bottom))}
@@ -228,12 +259,26 @@ a.btn{text-decoration:none;color:inherit}
   /* floating pill toolbar — matches the floating-card look of the mobile layout */
   .bottombar{position:fixed;left:26px;right:26px;bottom:max(12px, env(safe-area-inset-bottom));
     border:1px solid var(--line);border-radius:22px;
-    background:rgba(236,236,238,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    box-shadow:0 8px 24px rgba(0,0,0,.16);padding:9px 12px}
-  .bottombar .btn{background:rgba(255,255,255,.85)}
+    background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 8px 24px var(--shadow-bar);padding:9px 12px}
+  .bottombar .btn{background:var(--glass-btn)}
   .main{padding-bottom:74px} /* keep the last card clear of the floating bar */
 }
 </style>
+<script>
+/* Resolve the theme before the first paint, or the app flashes light and then
+   repaints dark. "system" is resolved here too, so the CSS only has to define
+   one dark block keyed off data-theme. Deliberately standalone: this must run
+   before the main script exists. */
+(function(){
+  var pref = "system";
+  try{ pref = (JSON.parse(localStorage.getItem("billtracker.settings")||"{}").theme) || "system"; }catch(e){}
+  var dark = pref === "dark" ||
+    (pref !== "light" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.style.colorScheme = dark ? "dark" : "light"; // native form controls + scrollbars
+})();
+</script>
 </head>
 <body>
 <div id="splash"><svg width="88" height="88" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#57b957"/><path d="M30 18h40v56l-6.7-6-6.6 6-6.7-6-6.7 6-6.6-6-6.7 6z" fill="#fff"/><circle cx="41" cy="38" r="3.5" fill="#2c2c2e"/><circle cx="59" cy="38" r="3.5" fill="#2c2c2e"/><path d="M40 49q10 9 20 0" fill="none" stroke="#2c2c2e" stroke-width="3.5" stroke-linecap="round"/></svg></div>
@@ -414,6 +459,9 @@ a.btn{text-decoration:none;color:inherit}
     <div class="field"><label>Google Apps Script Web App URL</label><input id="stUrl" placeholder="https://script.google.com/macros/s/…/exec" oninput="refreshIcsField()"></div>
     <div class="field"><label>Sync token (must match TOKEN in the script)</label><input id="stToken" oninput="refreshIcsField()"></div>
     <div class="field check"><input id="stAuto" type="checkbox"><label for="stAuto" style="margin:0;font-size:14px;color:var(--txt)">Auto-sync on launch &amp; after changes</label></div>
+    <div class="field"><label>Appearance</label><select id="stTheme" onchange="applyTheme(this.value)">
+      <option value="system">Match device</option><option value="light">Light</option><option value="dark">Dark</option>
+    </select></div>
     <div class="field"><label>App icon badge — shows how many bills are overdue or due within 7 days. Requires the installed app; on iPhone tap Enable once to grant permission.</label>
       <button class="btn" onclick="enableBadge()">Enable Badge</button>
       <div id="badgeStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
@@ -437,7 +485,7 @@ a.btn{text-decoration:none;color:inherit}
       <span id="verInfo" style="font-size:12px;color:var(--txt2)"></span>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn" onclick="cancelSettings()">Cancel</button>
       <button class="btn primary" onclick="saveSettings()">Save</button>
     </div>
   </div>
@@ -447,7 +495,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.7 (2026-08-03)";
+const APP_VER = "1.8 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -698,7 +746,7 @@ function selectDate(ds){
 /* ================= Bill list view ================= */
 let filterCat = "all", searchQ = "";
 function fmtShort(s){ return parseD(s).toLocaleDateString("en-US",{month:"short",day:"numeric"}).toUpperCase(); }
-const CHEV = '<svg class="chev m-only" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c7c7cc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+const CHEV = '<svg class="chev m-only" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 function renderFilter(){
   const sel = document.getElementById("filterSel");
   let html = '<option value="all">All Active Bills</option><option value="due7">Due This Week</option><option value="autopay">Autopay</option>';
@@ -735,7 +783,7 @@ function renderList(){
     const fb = funderOf(b);
     html += `<div class="bill-row${selIds&&selIds.has(b.id)?" selected":""}" onclick="openDetail('${b.id}')">
       <div class="bill-name">
-        <div class="bill-icon" style="background:${cat.color}">${svgIcon(cat.icon,19,"#3a3a3c")}</div>
+        <div class="bill-icon" style="background:${cat.color}">${svgIcon(cat.icon,19)}</div>
         <div style="min-width:0">
           <div class="bill-title">${esc(b.name)}${b.autopay?'<span class="autopay-badge">AUTO</span>':''}${fb?`<span class="funded-chip">↳ ${esc(fb.name)}</span>`:''}</div>
           <div class="bill-sub d-only">Repeats: ${REPEAT_LABEL[b.repeat]||b.repeat}</div>
@@ -907,7 +955,7 @@ function openDetail(id){
     <tr class="pay-row" onclick="editPayment('${p.id}')"><td style="font-style:italic;color:var(--txt2)">${fmtDate(p.date)}</td>
     <td class="amt">${fmtMoney(p.amount)}</td>
     <td class="note">${esc(p.note||"")}</td>
-    <td style="color:#c7c7cc;text-align:right">${svgIcon("edit",12)}</td></tr>`).join("") || '<tr><td class="note">No payments logged yet. Tap a payment to edit or delete it.</td></tr>';
+    <td style="color:var(--faint);text-align:right">${svgIcon("edit",12)}</td></tr>`).join("") || '<tr><td class="note">No payments logged yet. Tap a payment to edit or delete it.</td></tr>';
 
   document.getElementById("detail").classList.add("open");
   setThemeColor("#57b957"); // status bar blends with the green header
@@ -917,8 +965,32 @@ function openDetail(id){
   sc.scrollLeft = sc.scrollWidth;
   requestAnimationFrame(()=>{ sc.scrollLeft = sc.scrollWidth; });
 }
-function closeDetail(){ document.getElementById("detail").classList.remove("open"); currentBillId=null; setThemeColor("#ececee"); renderAll(); }
+function closeDetail(){ document.getElementById("detail").classList.remove("open"); currentBillId=null; setThemeColor(chromeColor()); renderAll(); }
 function setThemeColor(c){ document.querySelector('meta[name="theme-color"]').setAttribute("content", c); }
+
+/* ================= Theme ================= */
+// "system" | "light" | "dark". The <head> boot script applies the same rule
+// before first paint; this is for changes made while the app is running.
+function themePref(){ const t = settings().theme; return (t==="light"||t==="dark") ? t : "system"; }
+function prefersDark(){ return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches); }
+function applyTheme(pref){
+  const dark = pref==="dark" || (pref!=="light" && prefersDark());
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  // The status bar tracks whichever surface is on screen; the detail view keeps
+  // its green header in both themes.
+  setThemeColor(currentBillId ? "#57b957" : chromeColor());
+}
+// Read back the resolved value so the meta tag can never drift from the CSS.
+function chromeColor(){
+  return getComputedStyle(document.documentElement).getPropertyValue("--chrome").trim() || "#ececee";
+}
+if(window.matchMedia){
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onSystemChange = ()=>{ if(themePref()==="system") applyTheme("system"); };
+  if(mq.addEventListener) mq.addEventListener("change", onSystemChange);
+  else if(mq.addListener) mq.addListener(onSystemChange); // older WebKit
+}
 function refreshDetail(){ if(currentBillId) openDetail(currentBillId); }
 
 /* ================= Actions ================= */
@@ -1081,7 +1153,7 @@ let editingIncomeId = null;
 function openIncome(){
   const rows = activeIncomes().map(i=>`<div class="bal-row income-row" style="color:var(--txt)" onclick="editIncome('${i.id}')">
     <span>${esc(i.name)}</span>
-    <span><b>${fmtMoney(i.amount)}</b> <span style="color:#c7c7cc">${svgIcon("edit",13)}</span></span>
+    <span><b>${fmtMoney(i.amount)}</b> <span style="color:var(--faint)">${svgIcon("edit",13)}</span></span>
     </div>`).join("");
   document.getElementById("incomeList").innerHTML = rows || '<div style="color:var(--txt2);font-size:13px">No income entries yet. Tap an entry to edit or delete it.</div>';
   editingIncomeId = null;
@@ -1141,7 +1213,7 @@ function renderSummary(){
     const c = getCat(k);
     return `<div class="sum-row">
       <div class="sum-line">
-        <span class="bill-icon" style="width:26px;height:26px;background:${c.color};flex-shrink:0">${svgIcon(c.icon,14,"#3a3a3c")}</span>
+        <span class="bill-icon" style="width:26px;height:26px;background:${c.color};flex-shrink:0">${svgIcon(c.icon,14)}</span>
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(c.label)}</span>
         <b style="font-variant-numeric:tabular-nums">${fmtMoney(v)}</b>
       </div>
@@ -1219,7 +1291,7 @@ function renderIconGrid(){
 function renderCatList(){
   const rows = Object.values(db.categories||{}).filter(c=>!c.deleted).map(c=>
     `<div class="cat-list-row">
-      <span class="bill-icon" style="width:28px;height:28px;background:${esc(c.color)}">${svgIcon(c.icon,15,"#3a3a3c")}</span>
+      <span class="bill-icon" style="width:28px;height:28px;background:${esc(c.color)}">${svgIcon(c.icon,15)}</span>
       <span style="flex:1">${esc(c.label)}</span>
       <button onclick="deleteCategory('${c.id}')" style="color:var(--red)">${svgIcon("x",14)}</button>
     </div>`).join("");
@@ -1255,6 +1327,7 @@ function openSettings(){
   document.getElementById("stUrl").value = s.syncUrl||"";
   document.getElementById("stToken").value = s.syncToken||"";
   document.getElementById("stAuto").checked = s.autoSync!==false;
+  document.getElementById("stTheme").value = themePref();
   document.getElementById("stReminder").value = s.reminderDays||0;
   document.getElementById("verInfo").textContent = "Version "+APP_VER;
   refreshBadgeStatus();
@@ -1321,11 +1394,14 @@ async function checkForUpdate(){
     toast("Couldn't check for updates"+(navigator.onLine?"":" — you're offline"));
   }
 }
+// Appearance previews live on change, so backing out has to restore the saved one.
+function cancelSettings(){ applyTheme(themePref()); closeModal("settingsModal"); }
 function saveSettings(){
   const old = settings();
   const reminderDays = Math.max(0, parseInt(document.getElementById("stReminder").value)||0);
   saveSettingsObj({syncUrl:document.getElementById("stUrl").value.trim(), syncToken:document.getElementById("stToken").value.trim(),
     autoSync:document.getElementById("stAuto").checked,
+    theme:document.getElementById("stTheme").value,
     reminderDays,
     // stamp on change, or when a pre-existing value never got a timestamp
     reminderDaysUpdatedAt: (reminderDays !== (old.reminderDays||0) || (reminderDays > 0 && !old.reminderDaysUpdatedAt))
@@ -1548,6 +1624,7 @@ window.addEventListener("focus", ()=>{ updateBadge(); });
   if(changed) localStorage.setItem("billtracker.data", JSON.stringify(db));
 })();
 function renderAll(){ renderFilter(); renderList(); renderSide(); }
+applyTheme(themePref());
 renderAll(); updateSyncStatus(); updateBadge();
 const st = settings();
 if(st.autoSync!==false && st.syncUrl && navigator.onLine) doSync(false);

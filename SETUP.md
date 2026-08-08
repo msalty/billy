@@ -66,7 +66,7 @@ That's it. Each device keeps a full local copy (works offline); changes sync to 
 - **Calendar selection** — click a dotted date to highlight the bills due that day; the bottom bar shows "N bills selected. Estimated amount due: $X". Click again to clear. Works for projected future occurrences too.
 - **On phones / narrow windows** the layout restacks: calendar card on top, then the bill list grouped into Overdue / Due Soon / Due Later with due date and amount on the right, then the stats and Monthly Balance card. Forms open as bottom sheets sized for touch.
 - Filter dropdown: all bills, due this week, autopay only, or by category. Search box filters by name.
-- **⚙︎** also has JSON backup/restore and CSV export.
+- **⚙︎** also has an Appearance setting (dark mode), JSON backup/restore, and CSV export.
 - **Per-bill payment logs** — in a bill's detail view, **Import Log** accepts pasted text or a file with one payment per line (`MM/DD/YYYY,amount,note`); duplicates (same date + amount) are skipped automatically, `$` and thousands separators are tolerated, and notes may contain commas. **Export Log** downloads the bill's history in the same format, newest first.
 
 ## Extra features included beyond the mock-up
@@ -164,6 +164,20 @@ Two things come free with it:
 - The filter dropdown gains a **Charged to** group. When a card is reissued, pick it and you have the exact list of billers to go update.
 
 Notes: every existing bill defaults to direct, so the feature is invisible until you use it. The picker won't offer a bill that already draws on the one you're editing, so funding can't loop. Archiving or deleting a funder puts its charges back into your balance — they have to come from somewhere once the card's statement is gone — and the app tells you how many bills that affects before you confirm.
+
+## Dark mode
+
+**⚙︎ Settings → Appearance**: *Match device*, *Light*, or *Dark*. The default is **Match device**, so on iOS, Android, macOS, and Windows the app follows your system setting — including switching live if your device changes at sunset, with no need to reopen Billy. Pick Light or Dark to override that.
+
+The choice previews as soon as you change the dropdown, so you can see it before committing; **Cancel** puts back whatever was saved.
+
+Notes:
+
+- The setting is stored per device and is **not** synced to your Sheet, so you can run dark on your phone and light on your desktop.
+- The theme is resolved before the first pixel is drawn, so opening the app in dark mode never flashes white.
+- The status-bar colour follows the theme on installed iOS/Android apps.
+- Category colours are yours to choose and stay recognisable in dark mode — the swatch is dimmed and the icon lightened, rather than the colour being replaced.
+- One thing that can't follow the theme: the **splash colour of the installed app** comes from `manifest.json`, which is a static file with no dark variant. It stays light for the moment the app launches.
 
 ## Spending summary
 
