@@ -447,7 +447,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.6 (2026-08-03)";
+const APP_VER = "1.7 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -1412,10 +1412,13 @@ function updateSyncStatus(){
     const ids = dueDateMap()[selectedDate]||[];
     if(ids.length){
       const bills = ids.map(id=>db.bills[id]).filter(Boolean);
-      const cash = bills.filter(b=>!isPassThrough(b)).reduce((s,b)=>s+(b.amountDue||0),0);
-      const charged = bills.filter(isPassThrough).reduce((s,b)=>s+(b.amountDue||0),0);
-      setSyncStatus(ids.length+(ids.length>1?" bills":" bill")+" selected ("+fmtDate(selectedDate)+"). Estimated amount due: "+fmtMoney(cash)
-        + (charged ? " (+"+fmtMoney(charged)+" charged to cards)" : ""));
+      // splitCash (via expectedAmount) falls back to a bill's running average,
+      // so a variable bill is estimated here exactly as it is in the sidebar.
+      // This used to read amountDue directly and so called every variable bill
+      // $0.00 while still labelling the figure an estimate.
+      const sel = splitCash(bills);
+      setSyncStatus(ids.length+(ids.length>1?" bills":" bill")+" selected ("+fmtDate(selectedDate)+"). Estimated amount due: "+fmtMoney(sel.cashAmt)
+        + (sel.chargedAmt ? " (+"+fmtMoney(sel.chargedAmt)+" charged to cards)" : ""));
       return;
     }
   }
