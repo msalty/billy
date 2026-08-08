@@ -264,7 +264,7 @@ a.btn{text-decoration:none;color:inherit}
       <div id="sideDark">
         <div id="sideStats"></div>
         <div class="balance">
-          <h3>Monthly Balance</h3>
+          <h3 id="balTitle">Monthly Balance</h3>
           <div id="balRows"></div>
         </div>
         <button class="side-btn" onclick="openIncome()">+ New Income</button>
@@ -447,7 +447,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.5 (2026-08-03)";
+const APP_VER = "1.6 (2026-08-03)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -634,21 +634,47 @@ function lastPayment(b){ const ps=paymentsFor(b.id); return ps[0]||null; }
 // charge doesn't recur, so it contributes nothing to an ongoing monthly figure.
 const MONTH_FACTOR = {weekly:52/12, biweekly:26/12, monthly:1, quarterly:1/3, semiannual:1/6, yearly:1/12, once:0};
 function monthlyEquivalent(b){ return expectedAmount(b) * (MONTH_FACTOR[b.repeat] ?? 1); }
-function monthPayments(){
-  const pre = todayStr().slice(0,7);
-  return Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre));
+/* Everything below is scoped to a month key ("YYYY-MM") rather than to today,
+ * so the summary can follow whichever month the calendar is showing. */
+function monthKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function thisMonthKey(){ return todayStr().slice(0,7); }
+function monthPayments(mk){
+  return Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(mk));
 }
-// Money that actually left your account this month. A payment logged against a
+// Money that actually left your account that month. A payment logged against a
 // pass-through bill is excluded: the card's own statement payment carries it.
-function paidThisMonth(){
-  return monthPayments().filter(p=>!isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
+function paidIn(mk){
+  return monthPayments(mk).filter(p=>!isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
 }
-function chargedThisMonth(){
-  return monthPayments().filter(p=>isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
+function chargedIn(mk){
+  return monthPayments(mk).filter(p=>isPassThrough(db.bills[p.billId])).reduce((s,p)=>s+p.amount,0);
 }
-function dueThisMonth(){ // bills whose nextDue falls in current month
-  const pre = todayStr().slice(0,7);
-  return activeBills().filter(b=>b.nextDue && b.nextDue.startsWith(pre));
+const MAX_OCC = 600; // guard when projecting a weekly bill years ahead
+/* Every occurrence of every active bill landing in the given month, projected
+ * forward from nextDue with the calendar's own rules.
+ *
+ * A bill appears once per time it actually bills, so a weekly bill contributes
+ * four or five entries. The old dueThisMonth() matched a single nextDue against
+ * the month, which counted a weekly bill once and understated what was left to
+ * pay — a $50/week bill reported $50 due for the month instead of up to $250.
+ *
+ * Projecting from nextDue (not from the month's start) keeps the current month
+ * honest too: occurrences already paid have advanced past today, so what's left
+ * is exactly what's still owed. Past months come back empty, because a bill only
+ * remembers its next due date — history lives in payments.
+ */
+function occurrencesIn(mk){
+  const out = [];
+  activeBills().forEach(b=>{
+    if(!b.nextDue) return;
+    const anchor = billAnchor(b);
+    let d = b.nextDue;
+    for(let i=0; i<MAX_OCC && d && d.slice(0,7)<=mk; i++){
+      if(d.slice(0,7)===mk) out.push(b);
+      d = addInterval(d, b.repeat, anchor);
+    }
+  });
+  return out;
 }
 
 /* ================= Calendar date selection ================= */
@@ -731,8 +757,16 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;
 document.getElementById("searchBox").addEventListener("input", e=>{ searchQ=e.target.value.toLowerCase(); renderList(); });
 
 /* ================= Sidebar ================= */
-let calBase = new Date();
-function calMove(dir){ if(dir===0) calBase=new Date(); else calBase.setMonth(calBase.getMonth()+dir); renderSide(); }
+// Pinned to the 1st: setMonth() on a 29th-31st overflows (Aug 31 + 1 month =
+// Oct 1), which silently skipped a month when navigating from a long month.
+let calBase = (function(){ const d = new Date(); d.setDate(1); return d; })();
+function calMove(dir){
+  if(dir===0){ calBase = new Date(); calBase.setDate(1); }
+  else calBase.setMonth(calBase.getMonth()+dir);
+  // A selection in a month you can no longer see can't be spotted or cleared.
+  selectedDate = null;
+  renderSide(); renderList(); updateSyncStatus();
+}
 function renderSide(){
   const y=calBase.getFullYear(), m=calBase.getMonth();
   document.getElementById("calTitle").textContent = calBase.toLocaleDateString("en-US",{month:"long",year:"numeric"});
@@ -749,28 +783,39 @@ function renderSide(){
   }
   document.getElementById("calGrid").innerHTML = html;
 
-  const soon = activeBills().filter(b=>b.nextDue && daysUntil(b.nextDue)>=0 && daysUntil(b.nextDue)<=7);
-  const dtm = dueThisMonth();
-  const pre = tod.slice(0,7);
-  const paidCount = new Set(Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(pre)).map(p=>p.billId)).size;
+  const mk = monthKey(calBase), isCur = mk === thisMonthKey();
+  const monthName = calBase.toLocaleDateString("en-US",{month:"long"}).toUpperCase();
+  const scope = isCur ? "THIS MONTH" : "IN "+monthName;
+  const dtm = occurrencesIn(mk);
+  const paidCount = new Set(monthPayments(mk).map(p=>p.billId)).size;
   // Counts stay whole so they match the bill list; only the dollar figures are
   // split, with what lands on a tracked card shown separately rather than hidden.
-  const soonSplit = splitCash(soon), dtmSplit = splitCash(dtm);
+  const dtmSplit = splitCash(dtm);
   const chargedNote = amt => amt ? `<div class="stat-sub charged">+ ${fmtMoney(amt)} charged to cards</div>` : "";
-  document.getElementById("sideStats").innerHTML = `
-    <div class="stat-row"><div class="stat-big">${soon.length}</div><div><div class="stat-label">BILLS DUE SOON</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(soonSplit.cashAmt)}</b></div>${chargedNote(soonSplit.chargedAmt)}</div></div>
-    <div class="stat-row"><div class="stat-big">${dtm.length}</div><div><div class="stat-label">BILLS DUE THIS MONTH</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(dtmSplit.cashAmt)}</b></div>${chargedNote(dtmSplit.chargedAmt)}</div></div>
-    <div class="stat-row"><div class="stat-big">${paidCount}</div><div><div class="stat-label">BILLS PAID THIS MONTH</div><div class="stat-sub">Amount Paid <b>${fmtMoney(paidThisMonth())}</b></div>${chargedNote(chargedThisMonth())}</div></div>`;
+  // "Due soon" is the next 7 days from today — it means nothing while you're
+  // browsing another month, so it only appears on the current one.
+  let stats = "";
+  if(isCur){
+    const soon = activeBills().filter(b=>b.nextDue && daysUntil(b.nextDue)>=0 && daysUntil(b.nextDue)<=7);
+    const soonSplit = splitCash(soon);
+    stats += `<div class="stat-row"><div class="stat-big">${soon.length}</div><div><div class="stat-label">BILLS DUE SOON</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(soonSplit.cashAmt)}</b></div>${chargedNote(soonSplit.chargedAmt)}</div></div>`;
+  }
+  stats += `
+    <div class="stat-row"><div class="stat-big">${dtm.length}</div><div><div class="stat-label">BILLS DUE ${scope}</div><div class="stat-sub">Est. Amt Due <b>${fmtMoney(dtmSplit.cashAmt)}</b></div>${chargedNote(dtmSplit.chargedAmt)}</div></div>
+    <div class="stat-row"><div class="stat-big">${paidCount}</div><div><div class="stat-label">BILLS PAID ${scope}</div><div class="stat-sub">Amount Paid <b>${fmtMoney(paidIn(mk))}</b></div>${chargedNote(chargedIn(mk))}</div></div>`;
+  document.getElementById("sideStats").innerHTML = stats;
 
+  document.getElementById("balTitle").textContent = isCur ? "Monthly Balance"
+    : calBase.toLocaleDateString("en-US",{month:"long",year:"numeric"})+" Balance";
   const income = activeIncomes().reduce((s,i)=>s+i.amount,0);
-  const paid = paidThisMonth();
+  const paid = paidIn(mk);
   const still = dtmSplit.cashAmt;
-  const charged = chargedThisMonth() + dtmSplit.chargedAmt;
+  const charged = chargedIn(mk) + dtmSplit.chargedAmt;
   const bal = income - paid - still;
   document.getElementById("balRows").innerHTML = `
     <div class="bal-row"><span>EXPECTED TOTAL INCOME</span><b>${fmtMoney(income)}</b></div>
-    <div class="bal-row"><span>PAID THIS MONTH</span><b>${fmtMoney(paid)}</b></div>
-    <div class="bal-row"><span>STILL DUE THIS MONTH</span><b>${fmtMoney(still)}</b></div>
+    <div class="bal-row"><span>PAID ${scope}</span><b>${fmtMoney(paid)}</b></div>
+    <div class="bal-row"><span>STILL DUE ${scope}</span><b>${fmtMoney(still)}</b></div>
     <div class="bal-row total"><span>BALANCE</span><b class="${bal<0?"neg":"pos"}">${fmtMoney(bal)}</b></div>
     ${charged?`<div class="bal-row charged"><span>CHARGED TO CARDS</span><b>${fmtMoney(charged)}</b></div>
     <div class="bal-note">Already covered by the card bills above — not counted again.</div>`:""}`;

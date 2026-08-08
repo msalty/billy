@@ -62,6 +62,7 @@ That's it. Each device keeps a full local copy (works offline); changes sync to 
 - Tap a bill for its detail view: log payments, **Mark Paid** (one tap, uses amount due or the running average), **Skip** a cycle, see highest/lowest/average payment, this year vs last year, a 13-month history chart, and the full payment log.
 - **Log Payment** advances the next due date automatically (uncheck the box to log a back payment).
 - Sidebar: calendar with due-date dots, bills due soon / this month / paid this month, and Monthly Balance (add income via **+ New Income**).
+- **Look ahead by month** — the arrows above the calendar move the whole summary, not just the grid. Step forward and the stats and Monthly Balance re-scope to that month: what's due, what it totals, and how it sits against your expected income. Labels name the month you're looking at (`BILLS DUE IN OCTOBER`, `October 2027 Balance`) so a projected month is never mistaken for the current one, and the clock icon returns you to today. See [Looking ahead](#looking-ahead).
 - **Calendar selection** — click a dotted date to highlight the bills due that day; the bottom bar shows "N bills selected. Estimated amount due: $X". Click again to clear. Works for projected future occurrences too.
 - **On phones / narrow windows** the layout restacks: calendar card on top, then the bill list grouped into Overdue / Due Soon / Due Later with due date and amount on the right, then the stats and Monthly Balance card. Forms open as bottom sheets sized for touch.
 - Filter dropdown: all bills, due this week, autopay only, or by category. Search box filters by name.
@@ -115,6 +116,19 @@ Notes:
 - The feed lists every occurrence explicitly rather than using a recurrence rule, so the dates match Billy exactly (a repeating rule can't reproduce its month-end behavior).
 - Archived and deleted bills are left out.
 - **The link contains your token.** Anyone who has it can read your bill names and amounts, and it may be stored on your calendar provider's servers. Treat it like a password; to revoke it, change `TOKEN` in `Code.gs` (which also means re-entering the token on each device).
+
+## Looking ahead
+
+The calendar's ‹ › arrows re-scope the summary beneath it. Step to a future month and you get what's due then, what it comes to, and how it compares with your expected income — useful for spotting the month a yearly premium lands on top of everything else.
+
+- **The current month is unchanged.** "Bills due soon" (the next 7 days) only makes sense from today, so it appears on the current month and nowhere else.
+- **Every label names its month** — `BILLS DUE IN OCTOBER`, `STILL DUE IN OCTOBER`, `October 2027 Balance` — so projected figures are never mistaken for today's. The clock icon jumps back to the current month.
+- **Future months are projections** built from each bill's repeat interval, so they include bills whose next due date hasn't reached that month yet.
+- **Past months show what you paid, not what was due.** A bill only remembers its next due date; history lives in your payment log. So looking back gives real "paid" figures and nothing under "due" — this is a forward-looking view.
+- **Income is treated as the same monthly figure in every month.** Billy tracks income as a monthly amount, so a month with an unusual paycheck won't be reflected.
+- The bill list itself doesn't change — only the summary follows the calendar.
+
+> **A figure that changed:** bills now count once per time they actually bill in a month. Previously a weekly bill was counted a single time no matter what, so a $50/week bill contributed $50 to "still due this month" instead of up to $250. If you track weekly or fortnightly bills, your Monthly Balance will read lower — and more accurately — than before.
 
 ## Month-end due dates
 

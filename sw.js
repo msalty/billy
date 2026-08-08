@@ -1,5 +1,5 @@
 // Simple offline cache for the app shell + background badge refresh.
-const CACHE = "billy-v12";
+const CACHE = "billy-v13";
 const ASSETS = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-192m.png", "icon-512m.png", "apple-touch-icon.png", "icon.svg"];
 
 self.addEventListener("install", e => {
