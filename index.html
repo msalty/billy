@@ -495,7 +495,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.8 (2026-08-03)";
+const APP_VER = "1.9 (2026-08-10)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -1367,10 +1367,19 @@ function copyIcsUrl(){
     navigator.clipboard.writeText(url).then(()=>toast("Calendar feed link copied")).catch(fallback);
   else fallback();
 }
+// Cache storage is per-ORIGIN, so on a host serving several apps we have to
+// pick out our own caches by name instead of touching everything the browser
+// holds. Derived from document.baseURI, which resolves to the same directory
+// the service worker derives from self.location — see the namespace note in
+// sw.js, including why the trailing "|" is needed.
+const CACHE_NS = "billy:" + new URL("./", document.baseURI).pathname + "|";
+async function ownCacheNames(){ return (await caches.keys()).filter(k => k.startsWith(CACHE_NS)); }
 async function checkForUpdate(){
   toast("Checking for update…");
   try{
     if("serviceWorker" in navigator){
+      // getRegistration() (singular, no argument) is the registration
+      // controlling this page — never the whole origin's list.
       const reg = await navigator.serviceWorker.getRegistration();
       if(reg) await reg.update(); // pull a new sw.js if one exists
     }
@@ -1379,10 +1388,18 @@ async function checkForUpdate(){
     if(!res.ok) throw new Error("HTTP "+res.status);
     const freshText = await res.clone().text();
     if("caches" in window){
-      const cur = (await caches.match("index.html")) || (await caches.match("./"));
+      const names = await ownCacheNames();
+      let cur = null;
+      for(const k of names){
+        const c = await caches.open(k);
+        // c.match(), not caches.match(): the global one answers from whichever
+        // cache on the origin holds that URL, which can be another app's.
+        cur = (await c.match("index.html")) || (await c.match("./"));
+        if(cur) break;
+      }
       if(cur && (await cur.clone().text()) === freshText){ toast("Billy is already up to date"); return; }
-      // stamp the fresh shell into every cache so the reload serves it
-      for(const k of await caches.keys()){
+      // stamp the fresh shell into this app's caches so the reload serves it
+      for(const k of names){
         const c = await caches.open(k);
         await c.put("index.html", res.clone());
         await c.put("./", res.clone());
