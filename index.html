@@ -260,9 +260,11 @@ a.btn{text-decoration:none;color:inherit}
   .bottombar{position:fixed;left:26px;right:26px;bottom:max(12px, env(safe-area-inset-bottom));
     border:1px solid var(--line);border-radius:22px;
     background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    box-shadow:0 8px 24px var(--shadow-bar);padding:9px 12px}
-  .bottombar .btn{background:var(--glass-btn)}
-  .main{padding-bottom:74px} /* keep the last card clear of the floating bar */
+    box-shadow:0 8px 24px var(--shadow-bar);padding:6px 8px;gap:6px;border-radius:18px}
+  /* compact on phones: the desktop-sized buttons made the pill ~57px tall */
+  .bottombar .btn{background:var(--glass-btn);padding:6px 11px;font-size:14px}
+  .bottombar .hint{font-size:12px}
+  .main{padding-bottom:62px} /* keep the last card clear of the floating bar */
 }
 </style>
 <script>
