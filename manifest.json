@@ -1,7 +1,9 @@
 {
   "name": "Billy",
   "short_name": "Billy",
+  "description": "Track recurring bills, due dates, and payments. Works offline and syncs to a Google Sheet you own.",
   "start_url": ".",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ececee",
   "theme_color": "#ececee",
@@ -11,5 +13,9 @@
     { "src": "icon-192m.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "icon-512m.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "screenshot-wide.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "Bill list with calendar and monthly balance" },
+    { "src": "screenshot-narrow.png", "sizes": "824x1830", "type": "image/png", "form_factor": "narrow", "label": "Bills grouped by due soon and due later" }
   ]
 }
