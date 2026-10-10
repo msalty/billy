@@ -8,6 +8,7 @@ A single-file web app (PWA) that runs on iOS, Android, Mac, Windows, and Linux, 
 |---|---|
 | `index.html` | The entire app (UI + logic + local storage) |
 | `manifest.json` | Lets the app install to your home screen / dock |
+| `screenshot-*.png` | Previews shown in the install dialog (Android, Googlebook, desktop Chrome) |
 | `sw.js` | Service worker — makes it work offline |
 | `Code.gs` | Google Apps Script backend — syncs to a Google Sheet, emails reminders, publishes the calendar feed |
 
