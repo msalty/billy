@@ -8,14 +8,14 @@
 // self.location so the app stays portable to any path on any server.
 const SCOPE = new URL("./", self.location);        // e.g. https://host/billy/
 const CACHE_NS = "billy:" + SCOPE.pathname + "|";  // e.g. "billy:/billy/|"
-const CACHE = CACHE_NS + "v16";
+const CACHE = CACHE_NS + "v17";
 // The trailing "|" is load-bearing: without it a root install's namespace
 // ("billy:/") is a string prefix of a subdirectory install's ("billy:/app/"),
 // so the root copy would sweep the subdirectory copy's caches. "billy:/|" and
 // "billy:/app/|" share no prefix.
 const LEGACY = /^billy-v\d+$/; // pre-namespace names, written only by this app
 
-const ASSETS = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-192m.png", "icon-512m.png", "apple-touch-icon.png", "icon.svg"];
+const ASSETS = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "icon-192m.png", "icon-512m.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
