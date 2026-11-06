@@ -20,7 +20,7 @@
   --sel:#dcdce0; --sel-hover:#d4d4d8; --green-tint:#e8f4e8;
   --cat-icon:#3a3a3c;
   --detail-side:#e9e9eb; --modal:#ffffff; --accent:#3b82c4;
-  --bar:#9a9aa0; --bar-cur:#7b7bea; --amt:#c0392b; --toast:#333333;
+  --bar:#9a9aa0; --bar-cur:#7b7bea; --toast:#333333;
   --overlay:rgba(0,0,0,.4); --shadow:rgba(0,0,0,.06); --shadow-bar:rgba(0,0,0,.16);
   --glass:rgba(236,236,238,.88); --glass-btn:rgba(255,255,255,.85);
   --side-bg:#3a3a3c; --side-bg2:#2c2c2e; --side-txt:#f2f2f7; --side-txt2:#aeaeb2;
@@ -36,7 +36,7 @@
   --sel:#3a3a3c; --sel-hover:#48484a; --green-tint:rgba(87,185,87,.22);
   --cat-icon:#f2f2f7;
   --detail-side:#242426; --modal:#2c2c2e; --accent:#6ab0f3;
-  --bar:#6a6a70; --bar-cur:#8f8fee; --amt:#ff6f61; --toast:#48484a;
+  --bar:#6a6a70; --bar-cur:#8f8fee; --toast:#48484a;
   --overlay:rgba(0,0,0,.6); --shadow:rgba(0,0,0,.45); --shadow-bar:rgba(0,0,0,.55);
   --glass:rgba(28,28,30,.9); --glass-btn:rgba(72,72,74,.85);
   --side-bg:#2c2c2e; --side-bg2:#1c1c1e;
@@ -222,7 +222,7 @@ a.btn{text-decoration:none;color:inherit}
 .income-row{cursor:pointer;border-radius:6px}
 .income-row b{color:var(--txt)} /* .bal-row b is sidebar text (near-white) — invisible on a light modal */
 .income-row:hover{background:var(--panel2)}
-.pay-table .amt{color:var(--amt);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.pay-table .amt{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .pay-table .note{color:var(--txt2)}
 .pay-table .del{color:var(--red);font-size:12px}
 
@@ -314,6 +314,7 @@ a.btn{text-decoration:none;color:inherit}
     box-shadow:0 8px 24px var(--shadow-bar);padding:6px 8px;gap:6px;border-radius:18px}
   /* compact on phones: the desktop-sized buttons made the pill ~57px tall */
   .bottombar .btn{background:var(--glass-btn);padding:6px 11px;font-size:14px}
+  .bottombar .btn.primary{background:var(--green)} /* + New keeps its green over the glass */
   .bottombar .hint{font-size:12px}
   .main{padding-bottom:62px} /* keep the last card clear of the floating bar */
 }
@@ -374,7 +375,7 @@ a.btn{text-decoration:none;color:inherit}
   </div>
 
   <div class="bottombar">
-    <button class="btn" onclick="openBillForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
+    <button class="btn primary" onclick="openBillForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
     <div class="hint" id="syncStatus">Select a bill to view available actions.</div>
     <button class="btn" onclick="openSummary()" title="Spending summary" aria-label="Spending summary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg></button>
     <button class="btn" id="syncBtn" onclick="doSync(true)" title="Sync now" aria-label="Sync now"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span class="m-hide"> Sync</span></button>
@@ -565,7 +566,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.11 (2026-11-06)";
+const APP_VER = "1.12 (2026-11-06)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
