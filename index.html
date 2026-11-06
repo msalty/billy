@@ -85,6 +85,11 @@ a.btn{text-decoration:none;color:inherit}
 .sum-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}
 .sum-track{height:5px;background:var(--line);border-radius:3px;margin:4px 0 0 34px}
 .sum-bar{height:100%;background:var(--green);border-radius:3px}
+.sum-charged{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);color:var(--txt2)}
+.sum-charged-head{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.3px;margin-bottom:4px}
+.sum-charged-head b{font-variant-numeric:tabular-nums}
+.sum-charged .sum-line{margin-top:8px;font-size:13px}
+.sum-charged .bill-icon{opacity:.75}
 
 /* ===== Bill list ===== */
 .list-head{display:grid;grid-template-columns:minmax(150px,2.2fr) 1fr 1fr 1.2fr 1.4fr 8px;gap:8px;padding:8px 14px;font-size:12px;color:var(--txt2);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
@@ -124,6 +129,10 @@ a.btn{text-decoration:none;color:inherit}
 .autopay-badge{font-size:10px;background:var(--green-tint);color:var(--green-dark);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
 .funded-chip{font-size:10px;background:var(--chip-bg);color:var(--chip-txt);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap}
 .empty{padding:60px 20px;text-align:center;color:var(--txt2)}
+.empty .btn{margin-top:12px}
+.m-amt.est{font-style:italic}
+/* Keyboard focus only (:focus-visible) — a mouse click on a row shows nothing. */
+[data-key-click]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
 /* ===== Sidebar ===== */
 .cal{margin-bottom:18px}
@@ -230,8 +239,16 @@ a.btn{text-decoration:none;color:inherit}
 @keyframes splashIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* ===== Toast ===== */
-#toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--toast);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30}
+/* Clears the bottom bar plus the home-indicator inset; a bare 70px sat on top of
+   the floating bar on notched iPhones, where the bar itself is lifted by 34px. */
+#toast{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);background:var(--toast);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;
+  display:flex;align-items:center;gap:14px;max-width:calc(100vw - 32px);white-space:nowrap}
 #toast.show{opacity:1}
+#toast span{overflow:hidden;text-overflow:ellipsis}
+/* The action only takes clicks while the toast is visible — a faded-out toast
+   must not leave an invisible Undo button over the page. */
+#toast button{color:#8ee08e;font-weight:700;font-size:13px;padding:2px 0;flex:none}
+#toast.show button{pointer-events:auto}
 
 /* ===== Mobile / narrow screens ===== */
 @media (max-width:800px){
@@ -303,9 +320,9 @@ a.btn{text-decoration:none;color:inherit}
       <div class="cal" id="calCard">
         <div class="cal-head">
           <div class="cal-title" id="calTitle"></div>
-          <button class="cal-nav" onclick="calMove(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-          <button class="cal-nav" onclick="calMove(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-          <button class="cal-nav" onclick="calMove(0)" title="Today"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+          <button class="cal-nav" onclick="calMove(-1)" title="Previous month" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="cal-nav" onclick="calMove(1)" title="Next month" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          <button class="cal-nav" onclick="calMove(0)" title="Today" aria-label="Back to this month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
       </div>
@@ -323,16 +340,16 @@ a.btn{text-decoration:none;color:inherit}
   <div class="bottombar">
     <button class="btn" onclick="openBillForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
     <div class="hint" id="syncStatus">Select a bill to view available actions.</div>
-    <button class="btn" onclick="openSummary()" title="Spending summary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg></button>
+    <button class="btn" onclick="openSummary()" title="Spending summary" aria-label="Spending summary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg></button>
     <button class="btn" id="syncBtn" onclick="doSync(true)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sync</button>
-    <button class="btn" onclick="openSettings()" title="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="btn" onclick="openSettings()" title="Settings" aria-label="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
 </div>
 
 <!-- Detail view -->
 <div class="detail" id="detail">
   <div class="detail-head">
-    <button onclick="closeDetail()" style="color:#fff;display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button onclick="closeDetail()" style="color:#fff;display:flex" title="Back" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <h2 id="dTitle"></h2>
     <button class="btn" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="editCurrentBill()">Edit</button>
     <button class="btn" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="deleteCurrentBill()">Delete</button>
@@ -467,7 +484,7 @@ a.btn{text-decoration:none;color:inherit}
     </select></div>
     <div class="field"><label>App icon badge — shows how many bills are overdue or due within 7 days. Requires the installed app; on iPhone tap Enable once to grant permission.</label>
       <button class="btn" onclick="enableBadge()">Enable Badge</button>
-      <div id="badgeStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
+      <div id="badgeStatus" style="font-size:12px;color:var(--txt2);margin-top:6px"></div></div>
     <div class="field"><label>Email reminders — send an email when a bill is due within this many days (0 = off). Each bill is emailed once per due date, never repeatedly. Requires the one-time trigger setup in the guide.</label>
       <input id="stReminder" type="number" min="0" max="30" inputmode="numeric" style="width:80px"></div>
     <div class="field"><label>Calendar feed — subscribe from Google, Apple, or Outlook Calendar to see due dates alongside everything else, on devices that never open Billy.</label>
@@ -488,7 +505,7 @@ a.btn{text-decoration:none;color:inherit}
       <span id="verInfo" style="font-size:12px;color:var(--txt2)"></span>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="cancelSettings()">Cancel</button>
+      <button class="btn" onclick="dismissModal('settingsModal')">Cancel</button>
       <button class="btn primary" onclick="saveSettings()">Save</button>
     </div>
   </div>
@@ -498,7 +515,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.9 (2026-08-10)";
+const APP_VER = "1.10 (2026-11-06)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -627,9 +644,11 @@ function dueLabel(s){
   if(n === 0) return "Due today";
   if(n === 1) return "Due tomorrow";
   if(n <= 45) return "Due in "+n+" days";
-  const months = Math.round(n/30);
-  return "Due in "+(n<60?"about 1 month":"over "+(months-1)+" months");
+  if(n < 60) return "Due in about 1 month";
+  const over = Math.round(n/30) - 1; // 60-74 days is "over 1 month", not "over 1 months"
+  return "Due in over "+over+" month"+(over===1?"":"s");
 }
+function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
 
 /* ================= Derived data ================= */
 function activeBills(){ return Object.values(db.bills).filter(b=>!b.deleted && !b.archived); }
@@ -773,7 +792,17 @@ function renderList(){
   else if(filterCat!=="all" && filterCat!=="archived") bills = bills.filter(b=>b.category===filterCat);
   if(searchQ) bills = bills.filter(b=>b.name.toLowerCase().includes(searchQ));
   bills.sort((a,b)=> (a.nextDue||"9999") < (b.nextDue||"9999") ? -1 : 1);
-  if(!bills.length){ list.innerHTML = '<div class="empty">No bills. Tap ＋ New to add your first bill.</div>'; return; }
+  if(!bills.length){
+    // Only call it an empty app when it is one; otherwise say the filter or
+    // search hid everything, and offer the way back.
+    const narrowed = searchQ || filterCat!=="all";
+    list.innerHTML = !narrowed && !activeBills().length
+      ? '<div class="empty">No bills yet. Tap ＋ New to add your first bill.</div>'
+      : filterCat==="archived" && !searchQ
+        ? '<div class="empty">No archived bills. Archive one from its detail view to keep its history without it showing here.</div>'
+        : `<div class="empty">No bills match${searchQ?` “${esc(searchQ)}”`:" this filter"}.<br><button class="btn" onclick="clearListFilters()">Show all bills</button></div>`;
+    return;
+  }
   const selIds = selectedDate ? new Set(dueDateMap()[selectedDate]||[]) : null;
   let html = "", lastGroup = null;
   bills.forEach(b=>{
@@ -784,7 +813,7 @@ function renderList(){
     if(group !== lastGroup){ html += `<div class="group-head ${group==="ARCHIVED"?"g-archived":(n<0?"g-overdue":(n<=7?"g-soon":""))}">${group}</div>`; lastGroup = group; }
     const lp = lastPayment(b);
     const fb = funderOf(b);
-    html += `<div class="bill-row${selIds&&selIds.has(b.id)?" selected":""}" onclick="openDetail('${b.id}')">
+    html += `<div class="bill-row${selIds&&selIds.has(b.id)?" selected":""}" onclick="openDetail('${b.id}')" tabindex="0" role="button" data-key-click>
       <div class="bill-name">
         <div class="bill-icon" style="background:${cat.color}">${svgIcon(cat.icon,19)}</div>
         <div style="min-width:0">
@@ -797,12 +826,26 @@ function renderList(){
       <div class="cell-num m-hide">${b.amountDue ? fmtMoney(b.amountDue) : '<span style="color:var(--txt2)">Not Set</span>'}</div>
       <div class="m-hide"><div>${lp?fmtDate(lp.date):"—"}</div><div class="due-sub">${lp?fmtMoney(lp.amount):""}</div></div>
       <div class="m-hide"><div class="due-main ${cls}">${b.nextDue?dueLabel(b.nextDue):"No due date"}</div><div class="due-sub">${b.nextDue?fmtDateLong(b.nextDue):""}</div></div>
-      <div class="m-right m-only"><div class="m-date">${b.nextDue?fmtShort(b.nextDue):"—"}</div><div class="m-amt">${b.amountDue?fmtMoney(b.amountDue):"Not Set"}</div></div>
+      <div class="m-right m-only"><div class="m-date">${b.nextDue?fmtShort(b.nextDue):"—"}</div>${mobileAmt(b)}</div>
       ${CHEV}
       <div class="status-bar ${cls}"></div>
     </div>`;
   });
   list.innerHTML = html;
+}
+// The phone layout has room for one amount, so a variable bill shows its
+// estimate (the running average, marked ~ as in the calendar feed) rather than
+// "Not Set" — the same figure the sidebar totals are built from.
+function mobileAmt(b){
+  if(b.amountDue) return `<div class="m-amt">${fmtMoney(b.amountDue)}</div>`;
+  const avg = billAverage(b);
+  return avg ? `<div class="m-amt est" title="Estimate — average of past payments">~${fmtMoney(avg)}</div>` : '<div class="m-amt">Not Set</div>';
+}
+function clearListFilters(){
+  filterCat = "all"; searchQ = "";
+  document.getElementById("searchBox").value = "";
+  document.getElementById("filterSel").value = "all";
+  renderList();
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 document.getElementById("searchBox").addEventListener("input", e=>{ searchQ=e.target.value.toLowerCase(); renderList(); });
@@ -830,7 +873,7 @@ function renderSide(){
     const ds = y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
     const has = dueDates[ds];
     const od = has && daysUntil(ds)<0;
-    html += `<div class="cal-day${ds===tod?" today":""}${ds===selectedDate?" selected":""}" onclick="selectDate('${ds}')">${d}${has?`<div class="cal-dot ${od?"overdue":""}"></div>`:""}</div>`;
+    html += `<div class="cal-day${ds===tod?" today":""}${ds===selectedDate?" selected":""}" onclick="selectDate('${ds}')"${has?' tabindex="0" role="button" data-key-click':""}>${d}${has?`<div class="cal-dot ${od?"overdue":""}"></div>`:""}</div>`;
   }
   document.getElementById("calGrid").innerHTML = html;
 
@@ -903,7 +946,7 @@ function openDetail(id){
     ${b.archived?'<div style="background:#8e8e93;color:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:14px">ARCHIVED — hidden from lists, calendar, balance, and badge</div>':""}
     <h4>REPEAT INTERVAL</h4><div class="val">${REPEAT_LABEL[b.repeat]||b.repeat}</div>
     ${MONTH_REPEATS.indexOf(b.repeat)>=0 && billAnchor(b)>28
-      ? `<div class="funded-note">Due on day ${billAnchor(b)}. Shorter months fall back to their last day, then it returns to the ${billAnchor(b)}th.</div>` : ""}
+      ? `<div class="funded-note">Due on day ${billAnchor(b)}. Shorter months fall back to their last day, then it returns to the ${ordinal(billAnchor(b))}.</div>` : ""}
     <h4>CATEGORY</h4><div class="val">${svgIcon(getCat(b.category).icon,14)} ${esc(getCat(b.category).label)}</div>
     <h4>AMOUNT DUE</h4><div class="val">${b.amountDue?fmtMoney(b.amountDue):"Not set (varies)"}</div>
     <h4>AUTOPAY</h4><div class="val">${b.autopay?"Yes":"No"}</div>
@@ -916,7 +959,7 @@ function openDetail(id){
         // Each row keeps the amount as it actually bills, so it can be matched
         // against a statement; the ≈ line shows the share the total is using.
         const sub = (k.repeat!=="monthly" && me) ? `<em>≈ ${fmtMoney(me)}/mo</em>` : "";
-        return `<div class="funded-item" onclick="openDetail('${k.id}')">
+        return `<div class="funded-item" onclick="openDetail('${k.id}')" tabindex="0" role="button" data-key-click>
           <span>${svgIcon(getCat(k.category).icon,13)} ${esc(k.name)}</span>
           <div class="funded-amt"><b>${fmtMoney(expectedAmount(k))}<i>${REPEAT_SHORT[k.repeat]||""}</i></b>${sub}</div></div>`;
       }).join("")}
@@ -955,7 +998,7 @@ function openDetail(id){
   }).join("")+'</div>';
 
   document.getElementById("dPayments").innerHTML = ps.map(p=>`
-    <tr class="pay-row" onclick="editPayment('${p.id}')"><td style="font-style:italic;color:var(--txt2)">${fmtDate(p.date)}</td>
+    <tr class="pay-row" onclick="editPayment('${p.id}')" tabindex="0" data-key-click><td style="font-style:italic;color:var(--txt2)">${fmtDate(p.date)}</td>
     <td class="amt">${fmtMoney(p.amount)}</td>
     <td class="note">${esc(p.note||"")}</td>
     <td style="color:var(--faint);text-align:right">${svgIcon("edit",12)}</td></tr>`).join("") || '<tr><td class="note">No payments logged yet. Tap a payment to edit or delete it.</td></tr>';
@@ -1113,9 +1156,12 @@ function editPayment(pid){
 function deletePaymentFromModal(){
   if(!editingPaymentId) return;
   if(!confirm("Delete this payment?")) return;
-  const p = db.payments[editingPaymentId]; p.deleted = true; touch(p);
+  const pid = editingPaymentId, p = db.payments[pid]; p.deleted = true; touch(p);
   editingPaymentId = null;
-  persist(); closeModal("payModal"); refreshDetail(); toast("Payment deleted");
+  persist(); closeModal("payModal"); refreshDetail();
+  // Looked up again by id: a sync in between can swap in the Sheet's copy.
+  toast("Payment deleted", ()=>{ const q = db.payments[pid]; if(!q) return;
+    q.deleted = false; touch(q); persist(); renderAll(); refreshDetail(); toast("Payment restored"); });
 }
 function savePayment(){
   const amount = parseFloat(document.getElementById("pfAmount").value);
@@ -1132,25 +1178,30 @@ function savePayment(){
   }
   const b = db.bills[currentBillId];
   const p = touch({id:uid(), billId:b.id, date:document.getElementById("pfDate").value||todayStr(), amount, note:document.getElementById("pfNote").value.trim()});
+  const undo = undoer(b.id, p.id);
   db.payments[p.id] = p;
   if(document.getElementById("pfAdvance").checked && b.nextDue){
     advanceDue(b); touch(b);
   }
-  persist(); closeModal("payModal"); refreshDetail(); toast("Payment logged");
+  persist(); closeModal("payModal"); refreshDetail(); toast("Payment logged", undo);
 }
+// One tap, so it's the easiest action in the app to hit by accident — and it
+// both logs a payment and moves the due date. Undo puts both back.
 function quickPay(){
   const b = db.bills[currentBillId];
   const amt = b.amountDue || billAverage(b);
   const p = touch({id:uid(), billId:b.id, date:todayStr(), amount:Math.round(amt*100)/100, note:b.autopay?"Autopay":""});
+  const undo = undoer(b.id, p.id);
   db.payments[p.id] = p;
   if(b.nextDue){ advanceDue(b); touch(b); }
-  persist(); refreshDetail(); toast("Marked paid "+fmtMoney(p.amount));
+  persist(); refreshDetail(); toast("Marked paid "+fmtMoney(p.amount), undo);
 }
 function skipBill(){
   const b = db.bills[currentBillId];
   if(!b.nextDue){ toast("No due date set"); return; }
+  const undo = undoer(b.id, null);
   advanceDue(b); touch(b);
-  persist(); refreshDetail(); toast("Skipped to "+fmtDate(b.nextDue));
+  persist(); refreshDetail(); toast("Skipped to "+fmtDate(b.nextDue), undo);
 }
 let editingIncomeId = null;
 function openIncome(){
@@ -1205,14 +1256,19 @@ function openSummary(){
 function renderSummary(){
   const year = document.getElementById("sumYear").value;
   const ps = Object.values(db.payments).filter(p=>!p.deleted && p.date.startsWith(year));
-  const total = ps.reduce((s,p)=>s+p.amount,0);
-  const byCat = {};
-  ps.forEach(p=>{
-    const bill = db.bills[p.billId];
-    const k = bill ? bill.category : "other";
-    byCat[k] = (byCat[k]||0) + p.amount;
-  });
-  const rows = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+  // The funding rule applies here as everywhere else money is totalled: a
+  // payment on a bill charged to a tracked card is already inside that card's
+  // payment, so adding it to the total would count it twice. It's listed
+  // separately instead, so "what do my subscriptions cost" still has an answer.
+  const charged = p=>isPassThrough(db.bills[p.billId]);
+  const cashPs = ps.filter(p=>!charged(p)), chargedPs = ps.filter(charged);
+  const byCat = list=>{
+    const out = {};
+    list.forEach(p=>{ const bill = db.bills[p.billId]; const k = bill ? bill.category : "other"; out[k] = (out[k]||0) + p.amount; });
+    return Object.entries(out).sort((a,b)=>b[1]-a[1]);
+  };
+  const total = cashPs.reduce((s,p)=>s+p.amount,0);
+  const row = ([k,v], bar)=>{
     const c = getCat(k);
     return `<div class="sum-row">
       <div class="sum-line">
@@ -1220,13 +1276,20 @@ function renderSummary(){
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(c.label)}</span>
         <b style="font-variant-numeric:tabular-nums">${fmtMoney(v)}</b>
       </div>
-      <div class="sum-track"><div class="sum-bar" style="width:${total?Math.max(2,v/total*100):0}%"></div></div>
+      ${bar?`<div class="sum-track"><div class="sum-bar" style="width:${total?Math.max(2,v/total*100):0}%"></div></div>`:""}
     </div>`;
-  }).join("");
+  };
+  const rows = byCat(cashPs).map(e=>row(e,true)).join("");
+  const chargedRows = byCat(chargedPs).map(e=>row(e,false)).join("");
+  const chargedTotal = chargedPs.reduce((s,p)=>s+p.amount,0);
   document.getElementById("sumBody").innerHTML =
     `<div style="font-size:26px;font-weight:700">${fmtMoney(total)}</div>
-     <div style="color:var(--txt2);font-size:13px;margin-bottom:6px">${ps.length} payment${ps.length===1?"":"s"} in ${year}</div>`
-    + (rows || '<div style="color:var(--txt2);font-size:13px;padding:10px 0">No payments logged for this year.</div>');
+     <div style="color:var(--txt2);font-size:13px;margin-bottom:6px">${cashPs.length} payment${cashPs.length===1?"":"s"} in ${year}</div>`
+    + (rows || (chargedRows ? "" : '<div style="color:var(--txt2);font-size:13px;padding:10px 0">No payments logged for this year.</div>'))
+    + (chargedRows ? `<div class="sum-charged">
+        <div class="sum-charged-head"><span>CHARGED TO CARDS</span><b>${fmtMoney(chargedTotal)}</b></div>
+        <div class="bal-note" style="color:var(--txt2)">Already inside the card payments above — not counted again.</div>
+        ${chargedRows}</div>` : "");
 }
 
 /* ================= Payment log import/export ================= */
@@ -1318,11 +1381,80 @@ function deleteCategory(id){
 }
 
 /* ================= Modals / toast ================= */
-function openModal(id){ document.getElementById(id).classList.add("open"); }
+// Mouse/trackpad devices only: on a phone, focusing a field pops the keyboard
+// over the bottom sheet before you've read it, and the return key is how people
+// dismiss that keyboard, so it mustn't submit the form.
+const FINE_POINTER = !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches);
+function openModal(id){
+  const m = document.getElementById(id);
+  m.classList.add("open");
+  if(FINE_POINTER && id!=="settingsModal"){ // Settings opens to read, not to retype the sync URL
+    const f = m.querySelector('input:not([type=checkbox]):not([type=file]):not([type=color]):not([readonly]), textarea');
+    if(f){ f.focus(); try{ f.select(); }catch(e){} } // select, so typing replaces a prefilled amount
+  }
+}
 function closeModal(id){ document.getElementById(id).classList.remove("open"); }
-document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>{ if(e.target===m) m.classList.remove("open"); }));
+// Every way of backing out of a modal — Cancel, Escape, tapping the backdrop —
+// goes through here, so Settings can put back a theme that was only previewed.
+function dismissModal(id){ if(id==="settingsModal") cancelSettings(); else closeModal(id); }
+document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>{ if(e.target===m) dismissModal(m.id); }));
+document.addEventListener("keydown", e=>{
+  if(e.isComposing) return;
+  // Later in the DOM paints on top, so the last open modal is the one in front
+  // (the category editor opens over the bill form).
+  const open = document.querySelectorAll(".modal-bg.open");
+  const top = open[open.length-1];
+  if(e.key==="Escape"){
+    if(top) dismissModal(top.id);
+    else if(currentBillId) closeDetail();
+    else if(selectedDate) selectDate(selectedDate); // clears the calendar selection
+    else return;
+    e.preventDefault();
+  } else if(e.key==="Enter" && !e.shiftKey){
+    const t = e.target;
+    if(top && FINE_POINTER && t.tagName==="INPUT" && top.contains(t)){
+      const primary = top.querySelector(".btn.primary");
+      if(primary){ e.preventDefault(); primary.click(); }
+    } else if(t.matches && t.matches("[data-key-click]")){
+      e.preventDefault(); t.click(); // keyboard-focusable rows behave like buttons
+    }
+  } else if(e.key===" " && e.target.matches && e.target.matches("[data-key-click]")){
+    e.preventDefault(); e.target.click();
+  }
+});
 let toastTimer;
-function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2200); }
+// toast(msg) or toast(msg, undoFn). With an undo function the toast carries an
+// Undo button and stays up longer so there's time to reach it.
+function toast(msg, undo){
+  const t = document.getElementById("toast");
+  t.textContent = "";
+  const span = document.createElement("span"); span.textContent = msg; t.appendChild(span);
+  if(undo){
+    const b = document.createElement("button"); b.textContent = "Undo";
+    b.onclick = ()=>{ clearTimeout(toastTimer); t.classList.remove("show"); undo(); };
+    t.appendChild(b);
+  }
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), undo ? 6000 : 2200);
+}
+// Snapshot what a payment/skip changes on a bill, and hand back the undo. A
+// payment it created is tombstoned rather than removed — auto-sync may already
+// have sent it to the Sheet, and a plain local delete would come back on the
+// next sync. Every write is touched, so the undo itself syncs as the newest edit.
+function undoer(billId, paymentId){
+  const b = db.bills[billId];
+  const before = {nextDue:b.nextDue, anchorDay:b.anchorDay};
+  return ()=>{
+    const bill = db.bills[billId];
+    if(bill && (bill.nextDue !== before.nextDue || bill.anchorDay !== before.anchorDay)){
+      bill.nextDue = before.nextDue; bill.anchorDay = before.anchorDay; touch(bill);
+    }
+    const p = paymentId && db.payments[paymentId];
+    if(p){ p.deleted = true; touch(p); }
+    persist(); renderAll(); refreshDetail(); toast("Undone");
+  };
+}
 
 /* ================= Settings / export ================= */
 function openSettings(){

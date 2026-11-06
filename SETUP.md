@@ -61,11 +61,13 @@ That's it. Each device keeps a full local copy (works offline); changes sync to 
 - **Custom categories** — pick "＋ New category…" in the bill form's category dropdown: name it, choose an SVG icon and a color. Custom categories sync to the Sheet (Categories tab) like everything else.
 - **Pay Online** — if a bill has a URL, its detail view shows a **Pay Online** button that opens the biller's site in a new tab.
 - Tap a bill for its detail view: log payments, **Mark Paid** (one tap, uses amount due or the running average), **Skip** a cycle, see highest/lowest/average payment, this year vs last year, a 13-month history chart, and the full payment log.
+- **Undo** — Mark Paid, Skip, Log Payment, and deleting a payment each show an **Undo** button in the confirmation for a few seconds. It puts the due date back and removes the payment (or restores the deleted one), and the undo syncs like any other change.
 - **Log Payment** advances the next due date automatically (uncheck the box to log a back payment).
 - Sidebar: calendar with due-date dots, bills due soon / this month / paid this month, and Monthly Balance (add income via **+ New Income**).
 - **Look ahead by month** — the arrows above the calendar move the whole summary, not just the grid. Step forward and the stats and Monthly Balance re-scope to that month: what's due, what it totals, and how it sits against your expected income. Labels name the month you're looking at (`BILLS DUE IN OCTOBER`, `October 2027 Balance`) so a projected month is never mistaken for the current one, and the clock icon returns you to today. See [Looking ahead](#looking-ahead).
 - **Calendar selection** — click a dotted date to highlight the bills due that day; the bottom bar shows "N bills selected. Estimated amount due: $X". Click again to clear. Works for projected future occurrences too.
-- **On phones / narrow windows** the layout restacks: calendar card on top, then the bill list grouped into Overdue / Due Soon / Due Later with due date and amount on the right, then the stats and Monthly Balance card. Forms open as bottom sheets sized for touch.
+- **On phones / narrow windows** the layout restacks: calendar card on top, then the bill list grouped into Overdue / Due Soon / Due Later with due date and amount on the right, then the stats and Monthly Balance card. Forms open as bottom sheets sized for touch. A variable bill shows its estimate (the running average) as `~$117.08`, since there's no separate Average column on a phone.
+- **Keyboard (desktop)** — **Esc** closes the open dialog, then the detail view, then clears a calendar selection. **Enter** in a dialog's text field saves it, and forms open with the cursor in the first field. **Tab** reaches the bill rows, payment rows, and dotted calendar days; Enter or Space opens them. (On phones the return key never submits a form — it's how you put the keyboard away.)
 - Filter dropdown: all bills, due this week, autopay only, or by category. Search box filters by name.
 - **⚙︎** also has an Appearance setting (dark mode), JSON backup/restore, and CSV export.
 - **Per-bill payment logs** — in a bill's detail view, **Import Log** accepts pasted text or a file with one payment per line (`MM/DD/YYYY,amount,note`); duplicates (same date + amount) are skipped automatically, `$` and thousands separators are tolerated, and notes may contain commas. **Export Log** downloads the bill's history in the same format, newest first.
@@ -183,6 +185,8 @@ Notes:
 ## Spending summary
 
 The bar-chart button in the bottom bar opens a year-by-year summary: total paid, payment count, and a per-category breakdown with proportion bars. It's read-only and computed from your existing payment history — nothing else in the app changes.
+
+Payments on bills [charged to a card you track](#funding-sources) follow the same rule as Monthly Balance: they're left out of the total — the card's own payments already include them — and listed underneath under **Charged to cards**, so you can still see what your card-billed subscriptions cost.
 
 ## App icon badge
 
