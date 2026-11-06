@@ -18,7 +18,7 @@
   --bg:#f5f5f7; --panel:#ffffff; --panel2:#fafafa; --input:#fafafa; --chrome:#ececee;
   --line:#e3e3e6; --txt:#1c1c1e; --txt2:#8e8e93; --faint:#c7c7cc;
   --sel:#dcdce0; --sel-hover:#d4d4d8; --green-tint:#e8f4e8;
-  --chip-bg:#ecebf3; --chip-txt:#5b5b70; --cat-icon:#3a3a3c;
+  --cat-icon:#3a3a3c;
   --detail-side:#e9e9eb; --modal:#ffffff; --accent:#3b82c4;
   --bar:#9a9aa0; --bar-cur:#7b7bea; --amt:#c0392b; --toast:#333333;
   --overlay:rgba(0,0,0,.4); --shadow:rgba(0,0,0,.06); --shadow-bar:rgba(0,0,0,.16);
@@ -34,7 +34,7 @@
   --bg:#000000; --panel:#1c1c1e; --panel2:#2c2c2e; --input:#1c1c1e; --chrome:#1c1c1e;
   --line:#38383a; --txt:#f2f2f7; --txt2:#98989d; --faint:#5a5a5e;
   --sel:#3a3a3c; --sel-hover:#48484a; --green-tint:rgba(87,185,87,.22);
-  --chip-bg:#3a3a40; --chip-txt:#c9c9d4; --cat-icon:#f2f2f7;
+  --cat-icon:#f2f2f7;
   --detail-side:#242426; --modal:#2c2c2e; --accent:#6ab0f3;
   --bar:#6a6a70; --bar-cur:#8f8fee; --amt:#ff6f61; --toast:#48484a;
   --overlay:rgba(0,0,0,.6); --shadow:rgba(0,0,0,.45); --shadow-bar:rgba(0,0,0,.55);
@@ -56,6 +56,8 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulati
 html{background:var(--chrome)}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--chrome);color:var(--txt);font-size:15px;-webkit-font-smoothing:antialiased}
 button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+/* Native checkboxes and date pickers take the brand green instead of browser blue. */
+:root{accent-color:var(--green)}
 input,select,textarea{font:inherit}
 
 /* ===== Layout ===== */
@@ -117,7 +119,8 @@ a.btn{text-decoration:none;color:inherit}
 :root[data-theme="dark"] .bill-icon{background-image:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55))!important}
 .chev{color:var(--faint)}
 .bill-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bill-sub{font-size:12px;color:var(--txt2)}
+.bill-sub{font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bill-sub .sub-fund{color:var(--txt2)}
 .cell-num{font-variant-numeric:tabular-nums}
 .due-main{font-weight:600}
 .due-main.overdue{color:var(--red)}
@@ -127,7 +130,6 @@ a.btn{text-decoration:none;color:inherit}
 .status-bar.overdue{background:var(--red)}
 .status-bar.soon{background:var(--amber)}
 .autopay-badge{font-size:10px;background:var(--green-tint);color:var(--green-dark);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
-.funded-chip{font-size:10px;background:var(--chip-bg);color:var(--chip-txt);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap}
 .empty{padding:60px 20px;text-align:center;color:var(--txt2)}
 .empty .btn{margin-top:12px}
 .m-amt.est{font-style:italic}
@@ -201,7 +203,7 @@ a.btn{text-decoration:none;color:inherit}
 .stat-block .s{font-size:11px;color:var(--txt2)}
 .chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:8px 0 4px;padding-top:16px}
 .chart-inner{display:flex;align-items:flex-end;gap:6px;width:max-content;min-width:100%}
-.cmonth{width:32px;flex-shrink:0;display:flex;flex-direction:column}
+.cmonth{flex:1 0 32px;max-width:60px;display:flex;flex-direction:column}
 .cbar-wrap{height:150px;display:flex;align-items:flex-end}
 .cbar{width:100%;background:var(--bar);border-radius:3px 3px 0 0;min-height:2px;position:relative}
 .cbar.cur{background:var(--bar-cur)}
@@ -211,9 +213,14 @@ a.btn{text-decoration:none;color:inherit}
 .clabel.yr{font-weight:700}
 .pay-table{width:100%;border-collapse:collapse;font-size:14px}
 .pay-table td{padding:5px 8px;border-bottom:1px solid var(--line)}
+/* Date, amount, and edit hug their content and the note takes the rest, so on a
+   wide screen the amount sits beside its date instead of mid-page. */
+.pay-table td:first-child,.pay-table td.amt,.pay-table td:last-child{width:1%;white-space:nowrap}
+.pay-table td.amt{padding-left:18px;padding-right:18px}
 .pay-row{cursor:pointer}
 .pay-row:hover td{background:var(--panel2)}
 .income-row{cursor:pointer;border-radius:6px}
+.income-row b{color:var(--txt)} /* .bal-row b is sidebar text (near-white) — invisible on a light modal */
 .income-row:hover{background:var(--panel2)}
 .pay-table .amt{color:var(--amt);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .pay-table .note{color:var(--txt2)}
@@ -222,7 +229,7 @@ a.btn{text-decoration:none;color:inherit}
 /* ===== Modal ===== */
 .modal-bg{position:fixed;inset:0;background:var(--overlay);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
 .modal-bg.open{display:flex}
-.modal{background:var(--modal);border-radius:14px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
+.modal{--mpad-b:20px;background:var(--modal);border-radius:14px;padding:20px 20px var(--mpad-b);width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
 .modal h3{margin-bottom:14px;font-size:18px}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:12px;color:var(--txt2);margin-bottom:4px}
@@ -230,6 +237,24 @@ a.btn{text-decoration:none;color:inherit}
 .field .row2{display:flex;gap:10px}
 .field .row2>*{flex:1}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* Save/Cancel stay on screen while a long form (Settings, a bill on a small
+   phone) scrolls beneath them. */
+.modal>.modal-actions:last-child{position:sticky;bottom:calc(var(--mpad-b) * -1);z-index:1;background:var(--modal);
+  margin:16px -20px calc(var(--mpad-b) * -1);padding:12px 20px var(--mpad-b);border-top:1px solid var(--line)}
+.field-hint{font-size:11.5px;color:var(--txt2);margin-top:5px;line-height:1.4}
+.field input:focus,.field select:focus,.field textarea:focus,.topbar select:focus,.topbar .search:focus{
+  outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-tint)}
+.set-sec{font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--txt2);margin:20px 0 10px;padding-top:16px;border-top:1px solid var(--line)}
+.set-sec:first-of-type{border-top:none;padding-top:0;margin-top:4px}
+.inline-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inline-row span{font-size:14px}
+/* Calendar selection summary, shown under the grid it was picked from. */
+.cal-sel{display:none;align-items:center;gap:8px;margin-top:12px;padding:9px 10px 9px 12px;border-radius:9px;font-size:13px;background:var(--side-bg2);color:var(--side-txt2)}
+.cal-sel.on{display:flex}
+.cal-sel b{color:var(--side-txt);font-variant-numeric:tabular-nums}
+.cal-sel span{flex:1;min-width:0}
+.cal-sel button{color:var(--side-txt2);display:flex;padding:2px}
+.hint-short{display:none}
 .check{display:flex;align-items:center;gap:8px;font-size:14px}
 .check input{width:auto}
 
@@ -253,7 +278,15 @@ a.btn{text-decoration:none;color:inherit}
 /* ===== Mobile / narrow screens ===== */
 @media (max-width:800px){
   .main{flex-direction:column;overflow-y:auto;background:var(--bg)}
-  .list-pane{overflow:visible;flex:none;margin:0 12px 12px;border-radius:14px;box-shadow:0 1px 3px var(--shadow)}
+  /* overflow:hidden clips the square group headers and rows to the card's
+     rounded corners; it does not scroll (flex:none, so it is full height). */
+  .list-pane{overflow:hidden;flex:none;margin:0 12px 12px;border-radius:14px;box-shadow:0 1px 3px var(--shadow)}
+  #calCard .cal-sel{background:var(--bg);color:var(--txt2)}
+  #calCard .cal-sel b{color:var(--txt)}
+  #calCard .cal-sel button{color:var(--txt2)}
+  /* The floating bar has ~110px for status on a phone: show the short form. */
+  .hint-long{display:none}
+  .hint-short{display:inline}
   .side-pane{display:contents}
   #calCard{order:-1;margin:12px;background:var(--panel);border-radius:14px;padding:14px;color:var(--txt);box-shadow:0 1px 3px var(--shadow)}
   #calCard .cal-nav{color:var(--txt2)}
@@ -267,7 +300,7 @@ a.btn{text-decoration:none;color:inherit}
   .bill-row{grid-template-columns:minmax(0,1fr) auto 16px;background:var(--panel)}
   .status-bar{display:none}
   .modal-bg{align-items:flex-end;padding:0}
-  .modal{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh;padding-bottom:max(20px, env(safe-area-inset-bottom))}
+  .modal{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh;--mpad-b:max(20px, env(safe-area-inset-bottom))}
   .field input,.field select,.field textarea{font-size:16px}
   .detail-left{width:100%;min-height:0}
   .detail-right{padding:14px;padding-bottom:max(20px, env(safe-area-inset-bottom))}
@@ -284,6 +317,8 @@ a.btn{text-decoration:none;color:inherit}
   .bottombar .hint{font-size:12px}
   .main{padding-bottom:62px} /* keep the last card clear of the floating bar */
 }
+/* Smallest phones: the status has ~35px left, which only ever shows "N…". */
+@media (max-width:360px){ .bottombar .hint{visibility:hidden} }
 </style>
 <script>
 /* Resolve the theme before the first paint, or the app flashes light and then
@@ -325,6 +360,7 @@ a.btn{text-decoration:none;color:inherit}
           <button class="cal-nav" onclick="calMove(0)" title="Today" aria-label="Back to this month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-sel" id="calSel"></div>
       </div>
       <div id="sideDark">
         <div id="sideStats"></div>
@@ -341,7 +377,7 @@ a.btn{text-decoration:none;color:inherit}
     <button class="btn" onclick="openBillForm()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New</button>
     <div class="hint" id="syncStatus">Select a bill to view available actions.</div>
     <button class="btn" onclick="openSummary()" title="Spending summary" aria-label="Spending summary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg></button>
-    <button class="btn" id="syncBtn" onclick="doSync(true)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sync</button>
+    <button class="btn" id="syncBtn" onclick="doSync(true)" title="Sync now" aria-label="Sync now"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span class="m-hide"> Sync</span></button>
     <button class="btn" onclick="openSettings()" title="Settings" aria-label="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
 </div>
@@ -376,7 +412,7 @@ a.btn{text-decoration:none;color:inherit}
     <div class="field"><label>Name</label><input id="bfName" placeholder="e.g. Electric Company"></div>
     <div class="field"><label>Category</label><select id="bfCat"></select></div>
     <div class="field"><div class="row2">
-      <div><label>Amount due ($, blank = varies)</label><input id="bfAmount" type="number" step="0.01" inputmode="decimal"></div>
+      <div><label>Amount due ($)</label><input id="bfAmount" type="number" step="0.01" inputmode="decimal" placeholder="Varies"></div>
       <div><label>Repeats</label><select id="bfRepeat">
         <option value="monthly">Every month</option><option value="weekly">Every week</option>
         <option value="biweekly">Every 2 weeks</option><option value="quarterly">Every quarter</option>
@@ -385,8 +421,10 @@ a.btn{text-decoration:none;color:inherit}
     </div></div>
     <div class="field"><label>Next due date</label><input id="bfDue" type="date"></div>
     <div class="field check"><input id="bfAutopay" type="checkbox"><label for="bfAutopay" style="margin:0;font-size:14px;color:var(--txt)">Autopay enabled</label></div>
-    <div class="field"><label>Funded by — pick the bill this gets charged to (e.g. a credit card) and it won't be counted again in Monthly Balance</label><select id="bfFunder"></select></div>
-    <div class="field"><label>Payment website URL (optional — adds a "Pay Online" button)</label><input id="bfUrl" type="url" placeholder="https://www.chase.com" autocapitalize="off" autocorrect="off"></div>
+    <div class="field"><label>Funded by</label><select id="bfFunder"></select>
+      <div class="field-hint">Charged to a card you track? Pick it, and this bill won't be counted twice in Monthly Balance.</div></div>
+    <div class="field"><label>Payment website</label><input id="bfUrl" type="url" placeholder="https://www.chase.com" autocapitalize="off" autocorrect="off">
+      <div class="field-hint">Optional — adds a Pay Online button.</div></div>
     <div class="field"><label>Notes</label><textarea id="bfNotes" rows="2"></textarea></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('billModal')">Cancel</button>
@@ -475,32 +513,44 @@ a.btn{text-decoration:none;color:inherit}
 <!-- Settings modal -->
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
-    <h3>Sync &amp; Data</h3>
-    <div class="field"><label>Google Apps Script Web App URL</label><input id="stUrl" placeholder="https://script.google.com/macros/s/…/exec" oninput="refreshIcsField()"></div>
-    <div class="field"><label>Sync token (must match TOKEN in the script)</label><input id="stToken" oninput="refreshIcsField()"></div>
+    <h3>Settings</h3>
+    <div class="set-sec">SYNC</div>
+    <div class="field"><label>Google Apps Script Web App URL</label><input id="stUrl" placeholder="https://script.google.com/macros/s/…/exec" oninput="refreshIcsField()" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label>Sync token</label><input id="stToken" oninput="refreshIcsField()" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="field-hint">Must match <code>TOKEN</code> in the script.</div></div>
     <div class="field check"><input id="stAuto" type="checkbox"><label for="stAuto" style="margin:0;font-size:14px;color:var(--txt)">Auto-sync on launch &amp; after changes</label></div>
-    <div class="field"><label>Appearance</label><select id="stTheme" onchange="applyTheme(this.value)">
+
+    <div class="set-sec">APPEARANCE</div>
+    <div class="field"><label>Theme</label><select id="stTheme" onchange="applyTheme(this.value)">
       <option value="system">Match device</option><option value="light">Light</option><option value="dark">Dark</option>
     </select></div>
-    <div class="field"><label>App icon badge — shows how many bills are overdue or due within 7 days. Requires the installed app; on iPhone tap Enable once to grant permission.</label>
-      <button class="btn" onclick="enableBadge()">Enable Badge</button>
-      <div id="badgeStatus" style="font-size:12px;color:var(--txt2);margin-top:6px"></div></div>
-    <div class="field"><label>Email reminders — send an email when a bill is due within this many days (0 = off). Each bill is emailed once per due date, never repeatedly. Requires the one-time trigger setup in the guide.</label>
-      <input id="stReminder" type="number" min="0" max="30" inputmode="numeric" style="width:80px"></div>
-    <div class="field"><label>Calendar feed — subscribe from Google, Apple, or Outlook Calendar to see due dates alongside everything else, on devices that never open Billy.</label>
+
+    <div class="set-sec">REMINDERS</div>
+    <div class="field"><label>App icon badge</label>
+      <div class="inline-row"><button class="btn" onclick="enableBadge()">Enable Badge</button></div>
+      <div id="badgeStatus" class="field-hint"></div>
+      <div class="field-hint">Counts bills overdue or due within 7 days. Needs the installed app; on iPhone, tap Enable once to grant permission.</div></div>
+    <div class="field"><label>Email reminders</label>
+      <div class="inline-row"><input id="stReminder" type="number" min="0" max="30" inputmode="numeric" style="width:72px"><span>days before a bill is due</span></div>
+      <div class="field-hint">0 = off. Each bill is emailed once per due date. Needs the one-time trigger setup in the guide.</div></div>
+
+    <div class="set-sec">CALENDAR FEED</div>
+    <div class="field">
       <input id="stIcs" readonly onclick="this.select()" placeholder="Fill in the sync URL and token above" style="font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace" autocapitalize="off" autocorrect="off" spellcheck="false">
-      <div class="modal-actions" style="justify-content:flex-start;margin-top:8px">
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:8px;flex-wrap:wrap">
         <button class="btn" onclick="copyIcsUrl()">Copy Link</button>
         <a class="btn" id="stIcsWebcal" href="#" target="_blank" rel="noopener">Subscribe (Apple / Outlook)</a>
       </div>
-      <div style="font-size:11.5px;color:var(--txt2);margin-top:6px;line-height:1.4">The link contains your token — anyone who has it can read your bill names and amounts. Read-only: subscribing can't change your data.</div></div>
-    <div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap">
+      <div class="field-hint">Shows due dates in Google, Apple, or Outlook Calendar. Read-only — but the link contains your token, so anyone who has it can read your bill names and amounts.</div></div>
+
+    <div class="set-sec">DATA</div>
+    <div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap;margin-top:0">
       <button class="btn" onclick="exportJSON()">Backup JSON</button>
       <button class="btn" onclick="document.getElementById('importFile').click()">Restore JSON</button>
       <button class="btn" onclick="exportCSV()">Export CSV</button>
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
     </div>
-    <div class="modal-actions" style="justify-content:flex-start;align-items:center">
+    <div class="modal-actions" style="justify-content:flex-start;align-items:center;flex-wrap:wrap">
       <button class="btn" onclick="checkForUpdate()">Check for Update</button>
       <span id="verInfo" style="font-size:12px;color:var(--txt2)"></span>
     </div>
@@ -515,7 +565,7 @@ a.btn{text-decoration:none;color:inherit}
 
 <script>
 "use strict";
-const APP_VER = "1.10 (2026-11-06)";
+const APP_VER = "1.11 (2026-11-06)";
 /* ================= SVG icons ================= */
 const SVG = {
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
@@ -813,13 +863,16 @@ function renderList(){
     if(group !== lastGroup){ html += `<div class="group-head ${group==="ARCHIVED"?"g-archived":(n<0?"g-overdue":(n<=7?"g-soon":""))}">${group}</div>`; lastGroup = group; }
     const lp = lastPayment(b);
     const fb = funderOf(b);
+    // On the subtitle line, not as a chip beside the name: there it was the
+    // first thing clipped, leaving "↳ Cha…" or a bare "↳…".
+    const fund = fb ? `<span class="sub-fund"> · ↳ ${esc(fb.name)}</span>` : "";
     html += `<div class="bill-row${selIds&&selIds.has(b.id)?" selected":""}" onclick="openDetail('${b.id}')" tabindex="0" role="button" data-key-click>
       <div class="bill-name">
         <div class="bill-icon" style="background:${cat.color}">${svgIcon(cat.icon,19)}</div>
         <div style="min-width:0">
-          <div class="bill-title">${esc(b.name)}${b.autopay?'<span class="autopay-badge">AUTO</span>':''}${fb?`<span class="funded-chip">↳ ${esc(fb.name)}</span>`:''}</div>
-          <div class="bill-sub d-only">Repeats: ${REPEAT_LABEL[b.repeat]||b.repeat}</div>
-          <div class="bill-sub m-only ${cls}">${b.nextDue?dueLabel(b.nextDue):"No due date"}</div>
+          <div class="bill-title">${esc(b.name)}${b.autopay?'<span class="autopay-badge">AUTO</span>':''}</div>
+          <div class="bill-sub d-only">Repeats: ${REPEAT_LABEL[b.repeat]||b.repeat}${fund}</div>
+          <div class="bill-sub m-only ${cls}">${b.nextDue?dueLabel(b.nextDue):"No due date"}${fund}</div>
         </div>
       </div>
       <div class="cell-num m-hide">${fmtMoney(billAverage(b))}</div>
@@ -876,6 +929,7 @@ function renderSide(){
     html += `<div class="cal-day${ds===tod?" today":""}${ds===selectedDate?" selected":""}" onclick="selectDate('${ds}')"${has?' tabindex="0" role="button" data-key-click':""}>${d}${has?`<div class="cal-dot ${od?"overdue":""}"></div>`:""}</div>`;
   }
   document.getElementById("calGrid").innerHTML = html;
+  renderCalSel();
 
   const mk = monthKey(calBase), isCur = mk === thisMonthKey();
   const monthName = calBase.toLocaleDateString("en-US",{month:"long"}).toUpperCase();
@@ -1634,30 +1688,47 @@ async function doSync(manual){
     if(manual) toast("Sync failed: "+e.message);
   }finally{ syncing=false; updateSyncStatus(); }
 }
-function setSyncStatus(msg){ document.getElementById("syncStatus").textContent = msg; }
+// The floating bar on a phone has room for a word or two, so each status also
+// has a short form; CSS shows one or the other.
+function setSyncStatus(msg, short){
+  const el = document.getElementById("syncStatus");
+  el.innerHTML = `<span class="hint-long">${esc(msg)}</span><span class="hint-short">${esc(short||msg)}</span>`;
+  el.title = msg;
+}
+// "today at 9:41 AM" / "yesterday at …" / "Nov 3 at …", rather than a raw
+// "11/6/2026, 9:41:07 AM".
+function syncTime(ms){
+  const d = new Date(ms), t = d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  const days = Math.round((parseD(todayStr()) - parseD(dstr(d)))/86400000);
+  if(days===0) return {long:"today at "+t, short:t};
+  if(days===1) return {long:"yesterday at "+t, short:"yesterday"};
+  const md = d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  return {long:md+" at "+t, short:md};
+}
 function updateSyncStatus(){
-  if(selectedDate){
-    const ids = dueDateMap()[selectedDate]||[];
-    if(ids.length){
-      const bills = ids.map(id=>db.bills[id]).filter(Boolean);
-      // splitCash (via expectedAmount) falls back to a bill's running average,
-      // so a variable bill is estimated here exactly as it is in the sidebar.
-      // This used to read amountDue directly and so called every variable bill
-      // $0.00 while still labelling the figure an estimate.
-      const sel = splitCash(bills);
-      setSyncStatus(ids.length+(ids.length>1?" bills":" bill")+" selected ("+fmtDate(selectedDate)+"). Estimated amount due: "+fmtMoney(sel.cashAmt)
-        + (sel.chargedAmt ? " (+"+fmtMoney(sel.chargedAmt)+" charged to cards)" : ""));
-      return;
-    }
-  }
   const s = settings();
-  if(!s.syncUrl){ setSyncStatus("Offline mode — set sync URL in Settings to back up to Google Sheets."); return; }
+  if(!s.syncUrl){ setSyncStatus("Offline mode — set sync URL in Settings to back up to Google Sheets.", "Not syncing"); return; }
   const dirty = localStorage.getItem("billtracker.dirty");
   const last = Number(localStorage.getItem("billtracker.lastSync")||0);
-  if(!navigator.onLine) setSyncStatus("Offline — changes saved locally"+(dirty?", will sync when online.":"."));
-  else if(dirty) setSyncStatus("Unsynced changes — will sync shortly.");
-  else if(last) setSyncStatus("Synced "+new Date(last).toLocaleString());
-  else setSyncStatus("Ready to sync.");
+  if(!navigator.onLine) setSyncStatus("Offline — changes saved locally"+(dirty?", will sync when online.":"."), "Offline");
+  else if(dirty) setSyncStatus("Unsynced changes — will sync shortly.", "Unsynced");
+  else if(last){ const t = syncTime(last); setSyncStatus("Synced "+t.long, "Synced "+t.short); }
+  else setSyncStatus("Ready to sync.", "Ready");
+}
+/* Calendar selection summary — under the calendar it was picked from. It used
+ * to be in the bottom bar, which a phone truncates to "1 bill sele…". */
+function renderCalSel(){
+  const el = document.getElementById("calSel");
+  const ids = selectedDate ? (dueDateMap()[selectedDate]||[]) : [];
+  if(!ids.length){ el.classList.remove("on"); el.innerHTML = ""; return; }
+  // splitCash (via expectedAmount) falls back to a bill's running average, so a
+  // variable bill is estimated here exactly as it is in the sidebar.
+  const sel = splitCash(ids.map(id=>db.bills[id]).filter(Boolean));
+  const day = parseD(selectedDate).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+  el.innerHTML = `<span>${day} · ${ids.length} bill${ids.length>1?"s":""} · est. <b>${fmtMoney(sel.cashAmt)}</b>`
+    + (sel.chargedAmt ? ` <span style="opacity:.75">+ ${fmtMoney(sel.chargedAmt)} on cards</span>` : "")
+    + `</span><button onclick="selectDate(selectedDate)" title="Clear selection" aria-label="Clear selection">${svgIcon("x",14)}</button>`;
+  el.classList.add("on");
 }
 window.addEventListener("online", ()=>{ updateSyncStatus(); if(localStorage.getItem("billtracker.dirty")) doSync(false); });
 window.addEventListener("offline", updateSyncStatus);
